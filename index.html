@@ -55,6 +55,8 @@ select{min-width:155px}
 .alerts{margin-top:28px}
 .alert{border-left:3px solid #dea442;background:#fff7e6;padding:16px;margin-top:12px;font-size:14px;line-height:1.6;border-radius:5px}
 .alert.high{border-left-color:#c0392b;background:#fdecea}
+.hatch.mg{background:repeating-linear-gradient(45deg,rgba(142,68,173,.85) 0 3px,rgba(142,68,173,.1) 3px 7px);box-shadow:inset 1px 0 #8e44ad,inset -1px 0 #8e44ad}
+.alert.mg{border-left-color:#8e44ad;background:#f5ecfa}
 .bottom{display:flex;gap:12px;align-items:center;margin-top:24px;flex-wrap:wrap}
 dialog{border:0;border-radius:16px;padding:28px;width:min(720px,95vw);box-shadow:0 20px 100px #173e3240}
 dialog::backdrop{background:#14362b70}dialog h2{font-size:24px;margin-bottom:22px}
@@ -245,14 +247,14 @@ code{background:#eef3f0;padding:2px 6px;border-radius:5px}
     <section class="panel">
       <div class="panelhead">
         <div><h2 id="range">Linha do tempo</h2><span class="muted">Clique no colaborador ou no período para ver ou editar.</span></div>
-        <div class="legend"><span><i style="background:#267c60"></i>Férias</span><span><i style="background:#6b7bc4"></i>Recesso</span><span><i style="background:repeating-linear-gradient(135deg,#e2a744 0 2px,#fff1ce 2px 4px)"></i>Ausência simultânea</span><span><i style="background:#d1495b;width:3px"></i>Hoje</span><span><i style="background:#f6cccc;border:1px dashed #e07070"></i>Feriado</span></div>
+        <div class="legend"><span><i style="background:#267c60"></i>Férias</span><span><i style="background:#6b7bc4"></i>Recesso</span><span><i style="background:repeating-linear-gradient(135deg,#e2a744 0 2px,#fff1ce 2px 4px)"></i>Ausência simultânea</span><span id="lgMg" hidden><i style="background:repeating-linear-gradient(45deg,#8e44ad 0 2px,#ecdcf5 2px 4px)"></i>Conflito Gestão × Líderes</span><span><i style="background:#d1495b;width:3px"></i>Hoje</span><span><i style="background:#f6cccc;border:1px dashed #e07070"></i>Feriado</span></div>
       </div>
       <div class="scroll"><div id="gantt"></div></div>
       <div class="holidays" id="holidays"></div>
     </section>
     <section class="alerts">
       <h2>Atenção à cobertura</h2>
-      <p class="muted">Dias em que duas ou mais pessoas do mesmo departamento estão ausentes ao mesmo tempo.</p>
+      <p class="muted" id="alertsIntro">Dias em que duas ou mais pessoas do mesmo departamento estão ausentes ao mesmo tempo.</p>
       <div id="alerts"></div>
     </section>
     <div class="bottom">
@@ -765,15 +767,30 @@ function render() {
   const baseRows = data.filter(r => (!fd || key(r.department) === fd) && (!fp || r.id === fp));
 
   // ocupação diária por departamento: dept -> dia -> Set(ids)
+  // líder: mapeamento de conflito apenas da própria área
+  const scope = ME.role === 'lider' ? data.filter(r => key(r.department) === key(ME.department)) : data;
   const occ = new Map();
-  for (const r of data) {
+  for (const r of scope) {
     const k = key(r.department); let m = occ.get(k); if (!m) occ.set(k, m = new Map());
     for (const p of r.periods) for (let t = Math.max(dt(p.start), start); t <= Math.min(dt(p.end), end); t += day) { let a = m.get(t); if (!a) m.set(t, a = new Set()); a.add(r.id); }
   }
-  const clash = (r, t) => { const a = occ.get(key(r.department))?.get(t); return !!a && a.size > 1 && a.has(r.id); };
+  // administrador: conflito entre Gestão (departamento oculto) e líderes de qualquer área
+  const MG = ME.role === 'admin';
+  const leaderUsers = new Set(USERS.filter(u => u.role === 'lider' && u.active !== false).map(u => u.id));
+  const isGest = r => isHiddenDept(r.department), isLead = r => !!r.user_id && leaderUsers.has(r.user_id);
+  const mgOcc = new Map();
+  if (MG) {
+    const g = new Map(), l = new Map(), add = (m, t, id) => { let a = m.get(t); if (!a) m.set(t, a = new Set()); a.add(id); };
+    for (const r of data) { const G = isGest(r), L = isLead(r); if (!G && !L) continue;
+      for (const p of r.periods) for (let t = Math.max(dt(p.start), start); t <= Math.min(dt(p.end), end); t += day) { if (G) add(g, t, r.id); if (L) add(l, t, r.id); } }
+    for (const [t, ga] of g) { const la = l.get(t); if (!la) continue; const u = new Set([...ga, ...la]); if (u.size > 1 && [...la].some(i => !ga.has(i))) mgOcc.set(t, u); }
+  }
+  const clashD = (r, t) => { const a = occ.get(key(r.department))?.get(t); return !!a && a.size > 1 && a.has(r.id); };
+  const clashM = (r, t) => !!mgOcc.get(t)?.has(r.id);
+  const clash = (r, t) => clashD(r, t) || clashM(r, t);
   const clip = p => [Math.max(start, dt(p.start)), Math.min(end, dt(p.end))];
   const visible = p => dt(p.start) <= end && dt(p.end) >= start;
-  const runs = (r, s, e) => { const out = []; let cur = null; for (let t = s; t <= e; t += day) { if (clash(r, t)) { if (cur && cur.e === t - day) cur.e = t; else out.push(cur = {s: t, e: t}); } } return out; };
+  const runs = (r, s, e, f = clash) => { const out = []; let cur = null; for (let t = s; t <= e; t += day) { if (f(r, t)) { if (cur && cur.e === t - day) cur.e = t; else out.push(cur = {s: t, e: t}); } } return out; };
   const shown = r => r.periods.filter(p => visible(p) && (!onlyConflicts || runs(r, ...clip(p)).length)).sort((a, b) => a.start < b.start ? -1 : 1);
   const rows = (onlyConflicts ? baseRows.filter(r => shown(r).length) : baseRows).sort((a, b) => key(a.department).localeCompare(key(b.department), 'pt-BR') || a.name.localeCompare(b.name, 'pt-BR'));
 
@@ -790,6 +807,19 @@ function render() {
       else alerts.push(cur = {k, s: t, e: t, peak: a.size, ids: new Set(a)});
     }
   }
+  if (MG && mgOcc.size && (!fd || baseRows.some(r => isGest(r) || isLead(r)))) {
+    let cur = null;
+    for (let t = start; t <= end; t += day) {
+      const a = mgOcc.get(t), ok = a && (!fp || a.has(fp));
+      if (!ok) { cur = null; continue; }
+      clashDays++;
+      if (cur) { cur.e = t; cur.peak = Math.max(cur.peak, a.size); a.forEach(i => cur.ids.add(i)); }
+      else alerts.push(cur = {mg: true, s: t, e: t, peak: a.size, ids: new Set(a)});
+    }
+  }
+  alerts.sort((a, b) => a.s - b.s);
+  $('#lgMg').hidden = !MG;
+  $('#alertsIntro').textContent = MG ? 'Dias em que duas ou mais pessoas do mesmo departamento estão ausentes ao mesmo tempo, e dias em que Gestão e líderes se ausentam juntos.' : ME.role === 'lider' ? 'Dias em que duas ou mais pessoas de ' + ME.department + ' estão ausentes ao mesmo tempo.' : 'Dias em que duas ou mais pessoas do mesmo departamento estão ausentes ao mesmo tempo.';
 
   $('#onlyConflicts').setAttribute('aria-pressed', String(onlyConflicts));
   $('#people').textContent = rows.length;
@@ -831,7 +861,8 @@ function render() {
         '<div class="track' + (coarse ? ' coarse' : '') + '" style="--days:' + days + ';height:' + Math.max(64, ps.length * 32 + 18) + 'px">' + bg + todayLine +
         ps.map((p, i) => {
           const [s, e] = clip(p), len = (dt(p.end) - dt(p.start)) / day + 1;
-          const hatches = runs(r, s, e).map(q => '<span class="hatch" style="left:' + ((q.s - s) / (e - s + day) * 100) + '%;width:' + ((q.e - q.s + day) / (e - s + day) * 100) + '%"></span>').join('');
+          const hq = (f, c) => runs(r, s, e, f).map(q => '<span class="hatch' + c + '" style="left:' + ((q.s - s) / (e - s + day) * 100) + '%;width:' + ((q.e - q.s + day) / (e - s + day) * 100) + '%"></span>').join('');
+          const hatches = hq(clashD, '') + hq(clashM, ' mg');
           return '<button data-edit="' + esc(r.id) + '" class="bar' + (p.type === 'Recesso' ? ' recesso' : '') + ro + '" style="left:' + ((s - start) / day / days * 100) + '%;width:' + ((e - s + day) / day / days * 100) + '%;top:' + (12 + i * 32) + 'px" title="' + esc(p.type + ' · ' + fmt(p.start) + ' a ' + fmt(p.end) + ' · ' + len + ' dia(s)' + (r.notes ? ' · ' + r.notes : '')) + '">' + hatches + '<span class="bar-label">' + esc(p.type) + ' · ' + fmt(p.start).slice(0, 5) + '–' + fmt(p.end).slice(0, 5) + ' · ' + len + 'd</span></button>';
         }).join('') + '</div></div>';
     }).join('') +
@@ -840,6 +871,7 @@ function render() {
   $('#holidays').innerHTML = hols.length ? '<b>Feriados no período:</b> ' + hols.map(h => fmt(h.d).slice(0, 5) + ' (' + new Date(h.t).toLocaleDateString('pt-BR', {weekday: 'short', timeZone: 'UTC'}).replace('.', '') + ') ' + esc(h.name) + '<span class="tag' + (h.kind === 'facultativo' ? ' fac' : '') + '">' + (h.kind === 'facultativo' ? 'facultativo' : h.kind) + '</span>').join(' · ') : '<b>Feriados no período:</b> nenhum.';
   $('#alerts').innerHTML = alerts.map(a => {
     const n = (a.e - a.s) / day + 1;
+    if (a.mg) return '<div class="alert mg"><strong>Gestão × Líderes</strong> · ' + fmt(iso(a.s)) + ' a ' + fmt(iso(a.e)) + ' (' + n + ' dia' + (n > 1 ? 's' : '') + ')<br>Gestão e liderança ausentes ao mesmo tempo: ' + [...a.ids].map(i => { const r = data.find(x => x.id === i); return esc(nameOf.get(i)) + (r ? ' <span class="muted">(' + esc(r.department) + ')</span>' : ''); }).join(', ') + '.</div>';
     return '<div class="alert' + (a.peak >= 3 ? ' high' : '') + '"><strong>' + esc(deptName.get(a.k)) + '</strong> · ' + fmt(iso(a.s)) + ' a ' + fmt(iso(a.e)) + ' (' + n + ' dia' + (n > 1 ? 's' : '') + ')<br>Até <b>' + a.peak + ' pessoas</b> ausentes ao mesmo tempo: ' + [...a.ids].map(i => esc(nameOf.get(i))).join(', ') + '.</div>';
   }).join('') || '<div class="card muted">Nenhuma sobreposição encontrada na janela e nos filtros selecionados.</div>';
 }
