@@ -49,7 +49,10 @@ select{min-width:155px}
 .bar{position:absolute;border:0;border-radius:5px;height:26px;padding:4px 6px;white-space:nowrap;overflow:hidden;font-size:13px;color:#fff;background:#267c60;min-width:3px;text-align:left}
 .bar.recesso{background:#6b7bc4}.bar.ro{cursor:default}
 .hatch{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(255,196,75,.95) 0 3px,rgba(255,196,75,.12) 3px 7px);box-shadow:inset 1px 0 #e2a744,inset -1px 0 #e2a744;pointer-events:none}
-.bar-label{position:relative;z-index:1;text-shadow:0 1px 3px #193d31}
+.bar-label{position:relative;z-index:1}
+.bar.cf-d{box-shadow:0 0 0 2px #fff,0 0 0 4px #e8a317}.bar.cf-h{box-shadow:0 0 0 2px #fff,0 0 0 4px #c0392b}.bar.cf-m{box-shadow:0 0 0 2px #fff,0 0 0 4px #8e44ad}
+.cfb{position:absolute;height:6px;border-radius:3px;pointer-events:none;z-index:2}
+.cfb.d{background:#e8a317}.cfb.d.hi{background:#c0392b}.cfb.m{background:#8e44ad}
 #onlyConflicts[aria-pressed="true"]{background:#fff1ce;border-color:#c88a24;color:#805410}
 .empty{text-align:center;color:#76867b;padding:55px 24px}
 .alerts{margin-top:28px}
@@ -256,7 +259,7 @@ code{background:#eef3f0;padding:2px 6px;border-radius:5px}
     <section class="panel">
       <div class="panelhead">
         <div><h2 id="range">Linha do tempo</h2><span class="muted">Clique no colaborador ou no período para ver ou editar.</span></div>
-        <div class="legend"><span><i style="background:#267c60"></i>Férias</span><span><i style="background:#6b7bc4"></i>Recesso</span><span><i style="background:repeating-linear-gradient(135deg,#e2a744 0 2px,#fff1ce 2px 4px)"></i>Ausência simultânea</span><span id="lgMg" hidden><i style="background:repeating-linear-gradient(45deg,#8e44ad 0 2px,#ecdcf5 2px 4px)"></i>Conflito Gestão × Líderes</span><span><i style="background:#d1495b;width:3px"></i>Hoje</span><span><i style="background:#f6cccc;border:1px dashed #e07070"></i>Feriado</span></div>
+        <div class="legend"><span><i style="background:#267c60"></i>Férias</span><span><i style="background:#6b7bc4"></i>Recesso</span><span><i style="background:#e8a317;height:5px;width:16px;border-radius:3px"></i>Ausência simultânea</span><span><i style="background:#c0392b;height:5px;width:16px;border-radius:3px"></i>3+ ausentes</span><span id="lgMg" hidden><i style="background:#8e44ad;height:5px;width:16px;border-radius:3px"></i>Conflito Gestão × Líderes</span><span><i style="background:#d1495b;width:3px"></i>Hoje</span><span><i style="background:#f6cccc;border:1px dashed #e07070"></i>Feriado</span></div>
       </div>
       <div class="scroll"><div id="gantt"></div></div>
       <div class="holidays" id="holidays"></div>
@@ -879,12 +882,17 @@ function render() {
       const ys = restStats(r.periods)[refY] || {ferias: 0, naoDesc: 0, recesso: 0};
       const ysTip = esc('Em ' + refY + ': ' + ys.ferias + ' dia(s) de férias descontados' + (ys.naoDesc ? ', ' + ys.naoDesc + ' não descontado(s) pela convenção (' + NAO_DESC_TXT + ')' : '') + (ys.recesso ? ', ' + ys.recesso + ' de recesso' : ''));
       return '<div class="tr"><div class="person"><button data-edit="' + esc(r.id) + '">' + esc(r.name) + '</button><small>' + esc(r.department) + '</small>' + (ME.role === 'admin' ? '<small class="ysum" title="' + ysTip + '">Férias ' + refY + ': ' + ys.ferias + ' dia' + (ys.ferias === 1 ? '' : 's') + (ys.recesso ? ' · recesso ' + ys.recesso : '') + '</small>' : '') + '</div>' +
-        '<div class="track' + (coarse ? ' coarse' : '') + '" style="--days:' + days + ';height:' + Math.max(64, ps.length * 32 + 18) + 'px">' + bg + todayLine +
+        '<div class="track' + (coarse ? ' coarse' : '') + '" style="--days:' + days + ';min-height:' + Math.max(64, ps.length * 44 + 16) + 'px">' + bg + todayLine +
         ps.map((p, i) => {
           const [s, e] = clip(p), len = (dt(p.end) - dt(p.start)) / day + 1;
-          const hq = (f, c) => runs(r, s, e, f).map(q => '<span class="hatch' + c + '" style="left:' + ((q.s - s) / (e - s + day) * 100) + '%;width:' + ((q.e - q.s + day) / (e - s + day) * 100) + '%"></span>').join('');
-          const hatches = hq(clashD, '') + hq(clashM, ' mg');
-          return '<button data-edit="' + esc(r.id) + '" class="bar' + (p.type === 'Recesso' ? ' recesso' : '') + ro + '" style="left:' + ((s - start) / day / days * 100) + '%;width:' + ((e - s + day) / day / days * 100) + '%;top:' + (12 + i * 32) + 'px" title="' + esc(p.type + ' · ' + fmt(p.start) + ' a ' + fmt(p.end) + ' · ' + len + ' dia(s)' + (r.notes ? ' · ' + r.notes : '')) + '">' + hatches + '<span class="bar-label">' + esc(p.type) + ' · ' + fmt(p.start).slice(0, 5) + '–' + fmt(p.end).slice(0, 5) + ' · ' + len + 'd</span></button>';
+          const L = x => (x - start) / day / days * 100, W = (a, b) => (b - a + day) / day / days * 100, top = 10 + i * 44;
+          const rd = runs(r, s, e, clashD), rm = runs(r, s, e, clashM);
+          const peak = q => { let m = 0; for (let t = q.s; t <= q.e; t += day) m = Math.max(m, occ.get(key(r.department))?.get(t)?.size || 0); return m; };
+          const bands = rd.map(q => '<span class="cfb d' + (peak(q) >= 3 ? ' hi' : '') + '" style="left:' + L(q.s) + '%;width:' + W(q.s, q.e) + '%;top:' + (top + 30) + 'px"></span>').join('') +
+            rm.map(q => '<span class="cfb m" style="left:' + L(q.s) + '%;width:' + W(q.s, q.e) + '%;top:' + (top + (rd.length ? 37 : 30)) + 'px"></span>').join('');
+          const cf = rm.length ? ' cf-m' : rd.some(q => peak(q) >= 3) ? ' cf-h' : rd.length ? ' cf-d' : '';
+          const tip = (rd.length ? ' · ausência simultânea na área' : '') + (rm.length ? ' · conflito Gestão × Líderes' : '');
+          return '<button data-edit="' + esc(r.id) + '" class="bar' + (p.type === 'Recesso' ? ' recesso' : '') + ro + cf + '" style="left:' + L(s) + '%;width:' + W(s, e) + '%;top:' + top + 'px" title="' + esc(p.type + ' · ' + fmt(p.start) + ' a ' + fmt(p.end) + ' · ' + len + ' dia(s)' + tip + (r.notes ? ' · ' + r.notes : '')) + '"><span class="bar-label">' + (cf ? '⚠ ' : '') + esc(p.type) + ' · ' + fmt(p.start).slice(0, 5) + '–' + fmt(p.end).slice(0, 5) + ' · ' + len + 'd</span></button>' + bands;
         }).join('') + '</div></div>';
     }).join('') +
     (!rows.length ? '<div class="empty">' + (data.length ? (onlyConflicts ? 'Nenhum conflito corresponde aos filtros e à janela selecionada.' : 'Nenhum colaborador corresponde aos filtros.') : 'Seu planejamento começa aqui.<br>Cadastre ' + (ME.role === 'colaborador' ? 'as suas férias ou recessos.' : 'o primeiro colaborador e seus períodos de férias ou recesso.')) + '</div>' : '');
