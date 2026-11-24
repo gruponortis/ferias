@@ -135,6 +135,9 @@ dialog::backdrop{background:#14362b70}dialog h2{font-size:24px;margin-bottom:22p
 @media(max-width:700px){.welcome{padding:20px}.welcome h1{font-size:24px}.w-wx{width:100%}}
 .box{background:#fff;border:1px solid #dce6df;border-radius:16px;padding:32px;width:min(420px,100%);box-shadow:0 10px 40px #173e3214}
 .box h1{font-size:26px}.box form>*+*{margin-top:16px}.box button.primary{width:100%}
+.linkbtn{background:none;border:0;padding:6px 0;color:#17634c;text-decoration:underline;font-size:14px;margin-top:10px}
+.forgot{margin-top:14px;border-top:1px solid #e3ebe5;padding-top:14px}
+.forgot .ok{color:#17634c;font-size:14px;line-height:1.5;margin-top:10px}
 .note{background:#eef5f1;border-radius:10px;padding:12px 14px;font-size:13px;color:#3d5e50;line-height:1.5;margin-top:18px}
 .demo-banner{background:#fff1ce;color:#6b4b12;text-align:center;font-size:13px;padding:7px 12px}
 table{width:100%;border-collapse:collapse;font-size:14px}
@@ -182,8 +185,14 @@ code{background:#eef3f0;padding:2px 6px;border-radius:5px}
       <div class="error" id="loginErr" role="alert"></div>
       <button class="primary" id="loginBtn">Entrar</button>
     </form>
+    <button type="button" class="linkbtn" id="forgotBtn">Esqueceu sua senha?</button>
+    <form class="forgot" id="forgotForm" hidden>
+      <label>Seu login<input id="forgotUser" autocomplete="username" placeholder="ex.: jose.carlos" required></label>
+      <div class="error" id="forgotErr" role="alert"></div>
+      <div class="intro-actions" style="margin-top:12px"><button class="primary" id="forgotSend">Pedir nova senha</button><button type="button" id="forgotCancel">Voltar</button></div>
+      <div class="ok" id="forgotOk" hidden></div>
+    </form>
     <div class="note" id="demoLogins" hidden><b>Logins de teste</b> (senha 1234):<br><code>admin</code> administrador · <code>lider</code> líder de Engenharia · <code>bruno</code> colaborador de Engenharia · <code>carla</code> colaboradora do Comercial</div>
-    <div class="note">Esqueceu a senha? Peça ao administrador para redefini-la.</div>
   </div>
 </section>
 
@@ -285,6 +294,10 @@ code{background:#eef3f0;padding:2px 6px;border-radius:5px}
       <div class="card"><span><span class="badge lider">Líder</span></span><p style="margin:10px 0 0;font-size:14px">Vê o planejamento de todos os departamentos. Cadastra colaboradores e edita registros só do próprio departamento, e vê apenas a própria equipe.</p></div>
       <div class="card"><span><span class="badge">Colaborador</span></span><p style="margin:10px 0 0;font-size:14px">Vê apenas o próprio departamento. Cadastra e edita só as próprias férias.</p></div>
     </div>
+    <section class="panel" id="reqPanel" style="margin-bottom:24px;border-color:#e3c27a" hidden>
+      <div class="panelhead"><div><h2>Pedidos de nova senha</h2><span class="muted">Pessoas que clicaram em "Esqueceu sua senha?". Redefina para 1234 e envie a mensagem de acesso; no próximo login a pessoa cria uma senha nova.</span></div></div>
+      <div class="scroll"><table><thead><tr><th>Nome</th><th>Login</th><th>Departamento</th><th>Pedido em</th><th></th></tr></thead><tbody id="reqBody"></tbody></table></div>
+    </section>
     <section class="panel"><div class="scroll"><table>
       <thead><tr><th>Nome</th><th>Login</th><th>E-mail</th><th>Departamento</th><th>Perfil</th><th>Situação</th><th></th></tr></thead>
       <tbody id="usersBody"></tbody>
@@ -421,7 +434,7 @@ const canCreate = u => u.role !== 'colaborador' || !data.some(r => r.user_id ===
    BACKEND: DEMONSTRAÇÃO (localStorage)
    ===================================================================== */
 function demoBackend() {
-  const K = {u: 'ferias-demo-users', d: 'ferias-demo-data', s: 'ferias-demo-session', dep: 'ferias-demo-depts'};
+  const K = {u: 'ferias-demo-users', d: 'ferias-demo-data', s: 'ferias-demo-session', dep: 'ferias-demo-depts', r: 'ferias-demo-resets'};
   const read = (k, f) => { try { return JSON.parse(store.get(k)) ?? f; } catch { return f; } };
   const write = (k, v) => store.set(k, JSON.stringify(v));
   const hash = async s => { try { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('ferias:' + s)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); } catch { return 'p:' + s; } };
@@ -518,8 +531,14 @@ function demoBackend() {
     async resetPassword(id) {
       const u = need(['admin', 'lider']); const all = read(K.u, []); const x = all.find(v => v.id === id);
       if (!x || !canManageUser(u, x)) throw new Error('Sem permissão para redefinir esta senha.');
-      x.pw = await hash('1234'); x.must_change_password = true; write(K.u, all); return x.username;
-    }
+      x.pw = await hash('1234'); x.must_change_password = true; write(K.u, all);
+      write(K.r, read(K.r, []).map(r => r.user_id === id && !r.resolved_at ? {...r, resolved_at: new Date().toISOString()} : r)); return x.username;
+    },
+    async requestReset(login) {
+      const x = read(K.u, []).find(v => v.active && key(v.username) === key(login)); if (!x) return;
+      const all = read(K.r, []); if (!all.some(r => r.user_id === x.id && !r.resolved_at)) { all.push({id: uid(), user_id: x.id, created_at: new Date().toISOString(), resolved_at: null}); write(K.r, all); }
+    },
+    async resetRequests() { const u = need(['admin', 'lider']); const us = read(K.u, []); return read(K.r, []).filter(r => !r.resolved_at && us.some(v => v.id === r.user_id && canManageUser(u, v))); }
   };
 }
 
@@ -570,7 +589,9 @@ function supaBackend() {
     removeDepartment: name => rpc('admin_remove_department', {p_name: name}),
     createUser: p => rpc('admin_create_user', {p_email: p.email, p_full_name: p.full_name, p_department: p.department, p_role: p.role, p_colab_id: p.colab_id || null}),
     updateUser: (id, p) => rpc('admin_update_user', {p_id: id, p_full_name: p.full_name, p_department: p.department, p_role: p.role, p_active: p.active}),
-    resetPassword: id => rpc('admin_reset_password', {p_id: id})
+    resetPassword: id => rpc('admin_reset_password', {p_id: id}),
+    requestReset: login => rpc('request_password_reset', {p_login: login}),
+    async resetRequests() { const {data, error} = await sb.from('password_requests').select('id,user_id,created_at').is('resolved_at', null).order('created_at'); fail(error); return data || []; }
   };
 }
 
@@ -943,6 +964,17 @@ async function loadUsers() {
     return '<tr><td>' + esc(u.full_name) + (u.id === ME.id ? ' <span class="muted">(você)</span>' : '') + '</td><td><code>' + esc(u.username) + '</code></td><td>' + esc(u.email) + '</td><td>' + esc(u.department) + '</td><td><span class="badge ' + u.role + '">' + ROLE[u.role] + '</span></td><td>' + st + '</td><td class="act">' + (canManageUser(ME, u) ? '<button data-uedit="' + esc(u.id) + '">Editar</button> <button data-ureset="' + esc(u.id) + '">Redefinir senha</button>' : '') + '</td></tr>';
   }).join('') || '<tr><td colspan="7" class="muted">Nenhum usuário.</td></tr>';
   options();
+  await loadRequests();
+}
+async function loadRequests() {
+  let reqs = []; try { reqs = await API.resetRequests(); } catch (e) { reqs = []; }
+  reqs = reqs.filter(r => USERS.some(u => u.id === r.user_id));
+  $('#reqPanel').hidden = !reqs.length;
+  $('#reqBody').innerHTML = reqs.map(r => { const u = USERS.find(x => x.id === r.user_id);
+    return '<tr><td>' + esc(u.full_name) + (u.id === ME.id ? ' <span class="muted">(você)</span>' : '') + '</td><td><code>' + esc(u.username) + '</code></td><td>' + esc(u.department) + '</td><td>' + new Date(r.created_at).toLocaleString('pt-BR', {dateStyle: 'short', timeStyle: 'short'}) + '</td><td class="act"><button class="primary" data-ureset="' + esc(u.id) + '">Redefinir para 1234</button></td></tr>'; }).join('');
+  const base = ME.role === 'admin' ? 'Usuários e acessos' : 'Equipe de ' + ME.department;
+  $('#tabs [data-tab=users]').textContent = base + (reqs.length ? ' (' + reqs.length + ' pedido' + (reqs.length > 1 ? 's' : '') + ' de senha)' : '');
+  if (reqs.length && !loadRequests.warned) { loadRequests.warned = true; toast(reqs.length + ' pedido(s) de nova senha aguardando você em ' + base + '.'); }
 }
 const siteUrl = () => CONFIG.SITE_URL || location.href.split('#')[0].split('?')[0];
 const accessText = (name, login, reset) => 'Olá, ' + name.split(' ')[0] + '!\n\n' + (reset ? 'Sua senha do planejamento de férias foi redefinida.' : 'Seu acesso ao planejamento de férias e recessos foi criado.') + '\n\nEndereço: ' + siteUrl() + '\nLogin: ' + login + '\nSenha inicial: 1234\n\nNo primeiro acesso você vai criar uma nova senha.';
@@ -1150,6 +1182,7 @@ $('#deptList').onclick = async e => {
 };
 $('#userCancel').onclick = () => $('#userDialog').close();
 $('#uEmail').oninput = () => { const l = loginFrom($('#uEmail').value); $('#uLoginHint').innerHTML = l ? 'Login: <code>' + esc(l) + '</code> · senha inicial: <code>1234</code>' : ''; };
+$('#reqBody').onclick = e => $('#usersBody').onclick(e);
 $('#usersBody').onclick = async e => {
   const ed = e.target.closest('[data-uedit]'), rs = e.target.closest('[data-ureset]');
   if (ed) openUser(ed.dataset.uedit);
@@ -1182,6 +1215,17 @@ $('#copyAccess').onclick = async () => {
   const t = $('#accessMsg');
   try { await navigator.clipboard.writeText(t.value); } catch { t.select(); document.execCommand('copy'); }
   toast('Mensagem copiada.');
+};
+
+$('#forgotBtn').onclick = () => { $('#forgotForm').hidden = false; $('#forgotBtn').hidden = true; $('#forgotOk').hidden = true; $('#forgotErr').textContent = ''; $('#forgotUser').value = loginFrom($('#loginUser').value); $('#forgotUser').focus(); };
+$('#forgotCancel').onclick = () => { $('#forgotForm').hidden = true; $('#forgotBtn').hidden = false; };
+$('#forgotForm').onsubmit = async e => {
+  e.preventDefault(); $('#forgotErr').textContent = ''; $('#forgotOk').hidden = true;
+  const l = loginFrom($('#forgotUser').value); if (!l) { $('#forgotErr').textContent = 'Informe seu login.'; return; }
+  $('#forgotSend').disabled = true;
+  try { await API.requestReset(l); $('#forgotOk').innerHTML = 'Pedido registrado. O administrador ou o líder da sua área vai redefinir sua senha para <b>1234</b> e avisar você.<br>Ao entrar com 1234, o sistema pede para você criar uma senha nova.'; $('#forgotOk').hidden = false; }
+  catch (err) { $('#forgotErr').textContent = err.message; }
+  finally { $('#forgotSend').disabled = false; }
 };
 
 /* ---------- início ---------- */
