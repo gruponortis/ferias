@@ -857,7 +857,7 @@ function render() {
       const ps = shown(r), ro = canEdit(ME, r) ? '' : ' ro';
       const ys = restStats(r.periods)[refY] || {ferias: 0, naoDesc: 0, recesso: 0};
       const ysTip = esc('Em ' + refY + ': ' + ys.ferias + ' dia(s) de férias descontados' + (ys.naoDesc ? ', ' + ys.naoDesc + ' não descontado(s) pela convenção (' + NAO_DESC_TXT + ')' : '') + (ys.recesso ? ', ' + ys.recesso + ' de recesso' : ''));
-      return '<div class="tr"><div class="person"><button data-edit="' + esc(r.id) + '">' + esc(r.name) + '</button><small>' + esc(r.department) + '</small><small class="ysum" title="' + ysTip + '">Férias ' + refY + ': ' + ys.ferias + ' dia' + (ys.ferias === 1 ? '' : 's') + (ys.recesso ? ' · recesso ' + ys.recesso : '') + '</small></div>' +
+      return '<div class="tr"><div class="person"><button data-edit="' + esc(r.id) + '">' + esc(r.name) + '</button><small>' + esc(r.department) + '</small>' + (ME.role === 'admin' ? '<small class="ysum" title="' + ysTip + '">Férias ' + refY + ': ' + ys.ferias + ' dia' + (ys.ferias === 1 ? '' : 's') + (ys.recesso ? ' · recesso ' + ys.recesso : '') + '</small>' : '') + '</div>' +
         '<div class="track' + (coarse ? ' coarse' : '') + '" style="--days:' + days + ';height:' + Math.max(64, ps.length * 32 + 18) + 'px">' + bg + todayLine +
         ps.map((p, i) => {
           const [s, e] = clip(p), len = (dt(p.end) - dt(p.start)) / day + 1;
@@ -899,9 +899,9 @@ function cltCheck() {
     if (ns.length > 3) w.push('Em ' + y + ' há ' + ns.length + ' períodos de férias; a CLT permite dividir em até 3.');
     if (ns.length > 1 && !ns.some(n => n >= 14)) w.push('Em ' + y + ' as férias estão divididas e nenhum período tem 14 dias ou mais.');
   }
-  for (const [y, st] of Object.entries(stats)) if (st.ferias > 30) w.push('Em ' + y + ' há ' + st.ferias + ' dias de férias descontados (acima de 30). Confira se são períodos aquisitivos diferentes.');
+  if (ME.role === 'admin') for (const [y, st] of Object.entries(stats)) if (st.ferias > 30) w.push('Em ' + y + ' há ' + st.ferias + ' dias de férias descontados (acima de 30). Confira se são períodos aquisitivos diferentes.');
   const ys = Object.keys(stats).sort();
-  $('#yearSum').innerHTML = ys.length ? '<div class="ysum-box"><strong>Dias de descanso por ano</strong><br>' + ys.map(y => { const st = stats[y]; return '<b>' + y + ':</b> ' + st.ferias + ' dia(s) de férias descontados' + (st.naoDesc ? ' · ' + st.naoDesc + ' não descontado(s)' : '') + (st.recesso ? ' · ' + st.recesso + ' de recesso' : ''); }).join('<br>') + '<br><span class="muted" style="font-size:12px">Pela convenção da construção civil, ' + NAO_DESC_TXT + ' não são descontados das férias.</span></div>' : '';
+  $('#yearSum').innerHTML = ME.role !== 'admin' ? (ferias.length ? '<div class="ysum-box"><strong>Dias de descanso</strong><br>Confirme com o departamento de <b>Gente &amp; Gestão</b> quais dias deste período serão considerados como descanso.</div>' : '') : ys.length ? '<div class="ysum-box"><strong>Dias de descanso por ano</strong><br>' + ys.map(y => { const st = stats[y]; return '<b>' + y + ':</b> ' + st.ferias + ' dia(s) de férias descontados' + (st.naoDesc ? ' · ' + st.naoDesc + ' não descontado(s)' : '') + (st.recesso ? ' · ' + st.recesso + ' de recesso' : ''); }).join('<br>') + '<br><span class="muted" style="font-size:12px">Pela convenção da construção civil, ' + NAO_DESC_TXT + ' não são descontados das férias.</span></div>' : '';
   $('#clt').innerHTML = w.length ? '<div class="clt"><strong>Pontos de atenção (CLT)</strong><ul>' + w.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>Aviso apenas: não impede salvar.</div>' : '';
 }
 
