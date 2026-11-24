@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Equipe | Férias e recessos</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{font-family:Segoe UI,Arial,sans-serif;color:#193d31;background:#f2f6f4;font-size:16px}
+*{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}
+header{padding:18px 4%;background:#123f33;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+header small{color:#bed6ca}.who{display:flex;align-items:center;gap:10px;font-size:14px;flex-wrap:wrap}
+.who button{background:transparent;color:#fff;border-color:#4e7a69;padding:7px 12px;font-size:14px}
+main{max-width:1550px;margin:auto;padding:32px 4%}
+h1{font-size:32px;letter-spacing:-1px;margin:0 0 10px}h2{font-size:19px;margin:0 0 10px}p{color:#677c70;line-height:1.5}
+.intro{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:24px}
+.intro-actions{display:flex;gap:10px;flex-wrap:wrap}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer;background:#fff;border:1px solid #cfdcd4;border-radius:8px;padding:11px 16px;color:#254c3b}
+button:hover{filter:brightness(.96)}button:disabled{opacity:.55;cursor:not-allowed}
+.primary{background:#17634c;color:#fff;border-color:#17634c}.danger{color:#a74444}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #90cbb7;outline-offset:2px}
+.tabs{display:flex;gap:6px;margin-bottom:22px;border-bottom:1px solid #d6e2da}
+.tabs button{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:10px 14px;font-weight:600;color:#6b7e73}
+.tabs button[aria-selected="true"]{color:#17634c;border-bottom-color:#17634c}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.card{padding:20px;border:1px solid #dfe7e2;background:#fff;border-radius:12px}.card span{color:#6b7e73;font-size:14px}
+.card b{display:block;font-size:30px;margin-top:12px}
+.toolbar{display:flex;gap:16px;flex-wrap:wrap;align-items:end;background:#fff;border:1px solid #dce6df;border-radius:12px;padding:18px;margin-bottom:24px}
+label{font-size:14px;display:block;color:#5b7063}
+input,select,textarea{display:block;margin-top:7px;padding:10px;border:1px solid #cbd8d0;border-radius:7px;width:100%;background:#fff;color:#193d31}
+input:disabled,select:disabled,textarea:disabled{background:#f3f6f4;color:#5b7063}
+select{min-width:155px}
+.panel{background:#fff;border:1px solid #dce6df;border-radius:12px;overflow:hidden}
+.panelhead{display:flex;justify-content:space-between;padding:22px;gap:20px}
+.muted{font-size:14px;color:#6c8073}
+.legend{display:flex;gap:15px;font-size:14px;align-items:center;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+.scroll{overflow:auto}
+.tr{display:grid;grid-template-columns:225px 1fr;border-top:1px solid #e3ebe5}
+.person{padding:17px 20px;position:sticky;left:0;background:#fff;z-index:3;border-right:1px solid #e3ebe5}
+.person button{padding:0;border:0;text-align:left;font-weight:600;background:none}
+.person small{display:block;margin-top:7px;color:#75877c;font-size:13px}
+.track{position:relative;min-height:64px;background:repeating-linear-gradient(to right,transparent 0,transparent calc(100% / var(--days) - 1px),#edf1ee calc(100% / var(--days) - 1px),#edf1ee calc(100% / var(--days)))}
+.head{position:relative;background:#f7faf8;min-height:54px}
+.head span{position:absolute;transform:translateX(-50%);white-space:nowrap;font-size:13px;color:#75887b;padding:16px 0}
+.today{position:absolute;top:0;bottom:0;width:2px;background:#d1495b;z-index:2;pointer-events:none}
+.head .today-label{color:#d1495b;font-weight:600;top:-4px;font-size:11px;padding:0}
+.bar{position:absolute;border:0;border-radius:5px;height:26px;padding:4px 6px;white-space:nowrap;overflow:hidden;font-size:13px;color:#fff;background:#267c60;min-width:3px;text-align:left}
+.bar.recesso{background:#6b7bc4}.bar.ro{cursor:default}
+.hatch{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(255,196,75,.95) 0 3px,rgba(255,196,75,.12) 3px 7px);box-shadow:inset 1px 0 #e2a744,inset -1px 0 #e2a744;pointer-events:none}
+.bar-label{position:relative;z-index:1;text-shadow:0 1px 3px #193d31}
+#onlyConflicts[aria-pressed="true"]{background:#fff1ce;border-color:#c88a24;color:#805410}
+.empty{text-align:center;color:#76867b;padding:55px 24px}
+.alerts{margin-top:28px}
+.alert{border-left:3px solid #dea442;background:#fff7e6;padding:16px;margin-top:12px;font-size:14px;line-height:1.6;border-radius:5px}
+.alert.high{border-left-color:#c0392b;background:#fdecea}
+.bottom{display:flex;gap:12px;align-items:center;margin-top:24px;flex-wrap:wrap}
+dialog{border:0;border-radius:16px;padding:28px;width:min(720px,95vw);box-shadow:0 20px 100px #173e3240}
+dialog::backdrop{background:#14362b70}dialog h2{font-size:24px;margin-bottom:22px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.period{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:9px;align-items:end;margin:14px 0}.period select{min-width:0}
+.period .len{font-size:12px;color:#75877c;grid-column:1/-1;margin-top:-4px}
+.actions{display:flex;justify-content:end;gap:10px;margin-top:24px;flex-wrap:wrap}
+.error{color:#a33a2a;font-size:14px;margin-top:12px}
+.clt{background:#fff7e6;border-left:3px solid #dea442;border-radius:5px;padding:10px 14px;margin-top:14px;font-size:13px;color:#6b4b12}
+.clt ul{margin:6px 0 4px 18px;padding:0}.meta{font-size:12px;color:#7d8f84;margin-top:10px}
+#toast{position:fixed;bottom:24px;right:24px;background:#163f31;color:#fff;padding:15px;border-radius:10px;display:none;z-index:50;max-width:380px}
+.center{min-height:calc(100vh - 70px);display:flex;align-items:center;justify-content:center;padding:24px}
+.box{background:#fff;border:1px solid #dce6df;border-radius:16px;padding:32px;width:min(420px,100%);box-shadow:0 10px 40px #173e3214}
+.box h1{font-size:26px}.box form>*+*{margin-top:16px}.box button.primary{width:100%}
+.note{background:#eef5f1;border-radius:10px;padding:12px 14px;font-size:13px;color:#3d5e50;line-height:1.5;margin-top:18px}
+.demo-banner{background:#fff1ce;color:#6b4b12;text-align:center;font-size:13px;padding:7px 12px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:12px 14px;border-top:1px solid #e3ebe5;vertical-align:middle}
+th{background:#f7faf8;color:#5b7063;font-weight:600;border-top:0}
+td.act{white-space:nowrap;text-align:right}td.act button{padding:6px 10px;font-size:13px}
+code{background:#eef3f0;padding:2px 6px;border-radius:5px}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:600;background:#e7efe9;color:#2e5a47}
+.badge.admin{background:#17634c;color:#fff}.badge.lider{background:#dfe4f7;color:#3c4a8f}
+.status-off{color:#a74444}.status-wait{color:#a66b21}
+.access{background:#eef5f1;border-radius:10px;padding:14px;margin-top:16px}
+.access textarea{font-family:Consolas,monospace;font-size:13px;margin:8px 0}
+.check{display:flex;align-items:center;gap:8px;margin-top:16px}.check input{width:auto;margin:0}
+@media(max-width:700px){main{padding:24px 16px}.cards{grid-template-columns:1fr 1fr}.intro,.panelhead{align-items:start;flex-direction:column}.grid{grid-template-columns:1fr}.period{grid-template-columns:1fr 1fr}.toolbar label{flex:1}h1{font-size:27px}header small{display:none}.tr{grid-template-columns:150px 1fr}}
+</style>
+</head>
+<body>
+<div class="demo-banner" id="demoBanner" hidden>Modo demonstração: os dados ficam só neste navegador. Configure o Supabase (veja o LEIAME) para uso pela equipe.</div>
+<header>
+  <div><strong>EQUIPE · Férias &amp; recessos</strong> <small>&nbsp;GESTÃO DE PESSOAS</small></div>
+  <div class="who" id="who" hidden>
+    <span id="whoName"></span><span class="badge" id="whoRole"></span>
+    <button id="btnPw">Alterar senha</button><button id="btnOut">Sair</button>
+  </div>
+</header>
+
+<!-- ============ LOGIN ============ -->
+<section class="center" id="viewLogin" hidden>
+  <div class="box">
+    <h1>Entrar</h1>
+    <p>Use a parte do seu e-mail antes do @. No primeiro acesso a senha é <b>1234</b>.</p>
+    <form id="loginForm">
+      <label>Login<input id="loginUser" autocomplete="username" placeholder="ex.: jose.carlos" required></label>
+      <label>Senha<input id="loginPw" type="password" autocomplete="current-password" required></label>
+      <div class="error" id="loginErr" role="alert"></div>
+      <button class="primary" id="loginBtn">Entrar</button>
+    </form>
+    <div class="note" id="demoLogins" hidden><b>Logins de teste</b> (senha 1234):<br><code>admin</code> administrador · <code>lider</code> líder de Engenharia · <code>bruno</code> colaborador de Engenharia · <code>carla</code> colaboradora do Comercial</div>
+    <div class="note">Esqueceu a senha? Peça ao administrador para redefini-la.</div>
+  </div>
+</section>
+
+<!-- ============ TROCA DE SENHA ============ -->
+<section class="center" id="viewPw" hidden>
+  <div class="box">
+    <h1 id="pwTitle">Crie sua senha</h1>
+    <p id="pwText">Por segurança, troque a senha inicial antes de continuar.</p>
+    <form id="pwForm">
+      <label>Nova senha<input id="pw1" type="password" autocomplete="new-password" minlength="6" required></label>
+      <label>Confirme a nova senha<input id="pw2" type="password" autocomplete="new-password" minlength="6" required></label>
+      <div class="muted">Mínimo de 6 caracteres e diferente de 1234.</div>
+      <div class="error" id="pwErr" role="alert"></div>
+      <button class="primary" id="pwBtn">Salvar nova senha</button>
+      <button type="button" id="pwCancel" style="width:100%">Cancelar</button>
+    </form>
+  </div>
+</section>
+
+<!-- ============ APP ============ -->
+<main id="viewApp" hidden>
+  <nav class="tabs" id="tabs" hidden>
+    <button data-tab="plan" aria-selected="true">Planejamento</button>
+    <button data-tab="users" aria-selected="false">Usuários e acessos</button>
+  </nav>
+
+  <section id="tabPlan">
+    <div class="intro">
+      <div><h1>Planeje as pausas. Preserve a cobertura.</h1><p id="scope"></p></div>
+      <div class="intro-actions"><button class="primary" id="new">+ Cadastrar colaborador</button></div>
+    </div>
+    <div class="cards">
+      <div class="card"><span>Colaboradores no filtro</span><b id="people">0</b></div>
+      <div class="card"><span>Períodos na janela</span><b id="count">0</b></div>
+      <div class="card"><span>Dias de ausência na janela</span><b id="total">0</b></div>
+      <div class="card"><span>Dias com ausências simultâneas</span><b id="conflicts" style="color:#b47a22">0</b></div>
+    </div>
+    <div class="toolbar">
+      <label id="deptWrap">Departamento<select id="department"></select></label>
+      <label>Colaborador<select id="person"></select></label>
+      <label>Mês de referência<input type="month" id="month"></label>
+      <label>Janela<select id="window"><option value="1">1 mês</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></label>
+      <button id="onlyConflicts" aria-pressed="false">Somente conflitos</button>
+      <button id="clear">Limpar filtros</button>
+    </div>
+    <section class="panel">
+      <div class="panelhead">
+        <div><h2 id="range">Linha do tempo</h2><span class="muted">Clique no colaborador ou no período para ver ou editar.</span></div>
+        <div class="legend"><span><i style="background:#267c60"></i>Férias</span><span><i style="background:#6b7bc4"></i>Recesso</span><span><i style="background:repeating-linear-gradient(135deg,#e2a744 0 2px,#fff1ce 2px 4px)"></i>Ausência simultânea</span><span><i style="background:#d1495b;width:3px"></i>Hoje</span></div>
+      </div>
+      <div class="scroll"><div id="gantt"></div></div>
+    </section>
+    <section class="alerts">
+      <h2>Atenção à cobertura</h2>
+      <p class="muted">Dias em que duas ou mais pessoas do mesmo departamento estão ausentes ao mesmo tempo.</p>
+      <div id="alerts"></div>
+    </section>
+    <div class="bottom">
+      <button id="export">Exportar registros (CSV)</button>
+      <button id="import" hidden>Importar CSV</button><input type="file" id="importFile" accept=".csv,text/csv" hidden>
+      <span class="muted" id="sync">Carregando registros…</span>
+    </div>
+  </section>
+
+  <section id="tabUsers" hidden>
+    <div class="intro">
+      <div><h1>Usuários e acessos</h1><p>O login é a parte do e-mail antes do @ e a senha inicial é 1234. No primeiro acesso, a pessoa precisa criar uma nova senha.</p></div>
+      <div class="intro-actions"><button class="primary" id="newUser">+ Novo usuário</button></div>
+    </div>
+    <div class="cards" style="grid-template-columns:repeat(3,1fr)">
+      <div class="card"><span><span class="badge admin">Administrador</span></span><p style="margin:10px 0 0;font-size:14px">Acesso total: vê e edita todos os departamentos, cria logins, define perfis e redefine senhas.</p></div>
+      <div class="card"><span><span class="badge lider">Líder</span></span><p style="margin:10px 0 0;font-size:14px">Vê todos os departamentos. Cadastra, edita e exclui apenas no próprio departamento.</p></div>
+      <div class="card"><span><span class="badge">Colaborador</span></span><p style="margin:10px 0 0;font-size:14px">Vê apenas o próprio departamento. Cadastra e edita só as próprias férias.</p></div>
+    </div>
+    <section class="panel"><div class="scroll"><table>
+      <thead><tr><th>Nome</th><th>Login</th><th>E-mail</th><th>Departamento</th><th>Perfil</th><th>Situação</th><th></th></tr></thead>
+      <tbody id="usersBody"></tbody>
+    </table></div></section>
+  </section>
+</main>
+
+<!-- ============ DIÁLOGO: COLABORADOR ============ -->
+<dialog id="dialog"><form id="form">
+  <h2 id="title">Cadastrar colaborador</h2>
+  <div class="grid">
+    <label>Nome do colaborador<input id="name" required maxlength="100"></label>
+    <label>Departamento<input id="dept" required maxlength="100" list="departments"></label>
+  </div>
+  <label id="linkWrap" style="margin-top:16px">Login vinculado (permite que a pessoa edite as próprias férias)<select id="link"></select></label>
+  <datalist id="departments"></datalist>
+  <h3 style="font-size:16px;margin-top:24px">Períodos de ausência</h3>
+  <div id="periods"></div>
+  <button type="button" id="add">+ Adicionar período</button>
+  <div id="clt"></div>
+  <label style="margin-top:20px">Observações<textarea id="notes" rows="3" maxlength="3000" placeholder="Substituição e encaminhamentos"></textarea></label>
+  <div class="meta" id="meta"></div>
+  <div class="error" id="validation" role="alert"></div>
+  <div class="actions">
+    <button type="button" id="delete" class="danger" style="margin-right:auto">Excluir</button>
+    <button type="button" id="cancel">Cancelar</button>
+    <button class="primary" id="save">Salvar</button>
+  </div>
+</form></dialog>
+
+<!-- ============ DIÁLOGO: USUÁRIO ============ -->
+<dialog id="userDialog"><form id="userForm">
+  <h2 id="userTitle">Novo usuário</h2>
+  <div class="grid">
+    <label>E-mail<input id="uEmail" type="email" required maxlength="150" placeholder="nome.sobrenome@empresa.com.br"></label>
+    <label>Nome completo<input id="uName" required maxlength="100"></label>
+    <label>Departamento<input id="uDept" required maxlength="100" list="departments"></label>
+    <label>Perfil<select id="uRole"><option value="colaborador">Colaborador</option><option value="lider">Líder</option><option value="admin">Administrador</option></select></label>
+  </div>
+  <div class="muted" id="uLoginHint" style="margin-top:10px"></div>
+  <label class="check" id="uActiveWrap"><input type="checkbox" id="uActive"> Acesso ativo</label>
+  <div class="access" id="accessBox" hidden>
+    <b>Acesso pronto para enviar</b>
+    <textarea id="accessMsg" rows="7" readonly></textarea>
+    <button type="button" id="copyAccess">Copiar mensagem</button>
+  </div>
+  <div class="error" id="userErr" role="alert"></div>
+  <div class="actions">
+    <button type="button" id="userCancel">Cancelar</button>
+    <button class="primary" id="userSave">Criar acesso</button>
+  </div>
+</form></dialog>
+
+<dialog id="askDialog"><form id="askForm">
+  <h2 id="askTitle">Confirmar</h2><p id="askText"></p>
+  <div class="actions"><button type="button" id="askNo">Cancelar</button><button class="primary" id="askYes">Confirmar</button></div>
+</form></dialog>
+
+<dialog id="csvDialog"><form id="csvForm">
+  <h2>Exportar registros</h2>
+  <p class="muted" id="csvInfo"></p>
+  <textarea id="csvText" rows="10" readonly style="font-family:Consolas,monospace;font-size:12px;white-space:pre"></textarea>
+  <div class="actions"><button type="button" id="csvClose">Fechar</button><button type="button" id="csvCopy">Copiar texto</button><button type="button" class="primary" id="csvDown">Baixar arquivo .csv</button></div>
+</form></dialog>
+
+<div id="toast" role="status"></div>
+
+<script>
+/* =====================================================================
+   CONFIGURAÇÃO — preencha com os dados do seu projeto Supabase
+   (Supabase > Project Settings > API). Vazio = modo demonstração.
+   ===================================================================== */
+const CONFIG = {
+  SUPABASE_URL: 'https://iijbfwjclkhmrtmvfpfo.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpamJmd2pjbGtobXJ0bXZmcGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU0NzgxMDEsImV4cCI6MjExMTA1NDEwMX0.stEDfLe6Zg0IDddljRJvEcgzu3EBl9ZF1wGplJBx7ew',
+  LOGIN_DOMAIN: 'ferias-equipe.local', // igual a login_domain() no setup.sql
+  SITE_URL: 'https://jcnsilverio.github.io/ferias-gruponortis/'                        // endereço publicado (vai na mensagem de acesso)
+};
+const DEMO = !CONFIG.SUPABASE_URL;
+
+/* ---------- utilitários ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const day = 86400000;
+const dt = s => new Date(s + 'T00:00:00Z').getTime();
+const iso = t => new Date(t).toISOString().slice(0, 10);
+const fmt = s => new Date(s + 'T12:00:00Z').toLocaleDateString('pt-BR', {timeZone: 'UTC'});
+const key = s => String(s || '').trim().toLocaleLowerCase('pt-BR');
+const pad = n => String(n).padStart(2, '0');
+const localToday = () => { const n = new Date(); return n.getFullYear() + '-' + pad(n.getMonth() + 1) + '-' + pad(n.getDate()); };
+const currentMonth = () => localToday().slice(0, 7);
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now().toString(36) + Math.random().toString(36).slice(2));
+const ROLE = {admin: 'Administrador', lider: 'Líder', colaborador: 'Colaborador'};
+const loginFrom = s => String(s || '').trim().toLowerCase().split('@')[0];
+const store = (() => { const mem = {}; return {
+  get: k => { try { return localStorage.getItem(k); } catch { return mem[k] ?? null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch { mem[k] = v; } },
+  del: k => { try { localStorage.removeItem(k); } catch { delete mem[k]; } }
+}; })();
+function ask(title, text, yes = 'Confirmar') {
+  return new Promise(res => {
+    const d = $('#askDialog'); $('#askTitle').textContent = title; $('#askText').textContent = text; $('#askYes').textContent = yes;
+    const done = v => { d.close(); res(v); };
+    $('#askForm').onsubmit = e => { e.preventDefault(); done(true); };
+    $('#askNo').onclick = () => done(false); d.oncancel = () => res(false);
+    d.showModal();
+  });
+}
+let toastTimer;
+function toast(s) { const t = $('#toast'); t.textContent = s; t.style.display = 'block'; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.style.display = 'none', 4500); }
+
+/* ---------- regras de permissão (espelham as regras do banco) ---------- */
+const seesAll = u => u.role === 'admin' || u.role === 'lider';
+const canSee = (u, r) => seesAll(u) || key(r.department) === key(u.department);
+const canEdit = (u, r) => u.role === 'admin' || (u.role === 'lider' && key(r.department) === key(u.department)) || (u.role === 'colaborador' && r.user_id === u.id);
+const canWrite = (u, r) => u.role === 'admin' || (u.role === 'lider' && key(r.department) === key(u.department)) || (u.role === 'colaborador' && r.user_id === u.id && key(r.department) === key(u.department));
+const canDelete = (u, r) => u.role === 'admin' || (u.role === 'lider' && key(r.department) === key(u.department));
+const canonDept = d => { const k = key(d); const hit = data.find(r => key(r.department) === k) || USERS.find(u => key(u.department) === k); return hit ? hit.department.trim() : String(d || '').trim(); };
+const canCreate = u => u.role !== 'colaborador' || !data.some(r => r.user_id === u.id);
+
+/* =====================================================================
+   BACKEND: DEMONSTRAÇÃO (localStorage)
+   ===================================================================== */
+function demoBackend() {
+  const K = {u: 'ferias-demo-users', d: 'ferias-demo-data', s: 'ferias-demo-session'};
+  const read = (k, f) => { try { return JSON.parse(store.get(k)) ?? f; } catch { return f; } };
+  const write = (k, v) => store.set(k, JSON.stringify(v));
+  const hash = async s => { try { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('ferias:' + s)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); } catch { return 'p:' + s; } };
+  async function seed() {
+    if (read(K.u, null)) return;
+    const h = await hash('1234');
+    const mk = (username, full_name, department, role, must = true) => ({id: uid(), username, email: username + '@exemplo.com.br', full_name, department, role, pw: h, must_change_password: must, active: true});
+    const users = [mk('admin', 'Administrador (demo)', 'Gestão', 'admin', false), mk('lider', 'Ana Ribeiro', 'Engenharia', 'lider'), mk('bruno', 'Bruno Lima', 'Engenharia', 'colaborador'), mk('carla', 'Carla Souza', 'Comercial', 'colaborador')];
+    write(K.u, users);
+    const n = new Date(), y = n.getFullYear(), m = n.getMonth(), d = (mo, da) => iso(Date.UTC(y, m + mo, da));
+    const rec = (name, department, user_id, periods, notes = '') => ({id: uid(), name, department, user_id, periods, notes, updated_at: new Date().toISOString(), updated_by_name: 'Administrador (demo)'});
+    write(K.d, [
+      rec('Ana Ribeiro', 'Engenharia', users[1].id, [{type: 'Férias', start: d(0, 8), end: d(0, 21)}], 'Substituição: Bruno'),
+      rec('Bruno Lima', 'Engenharia', users[2].id, [{type: 'Férias', start: d(0, 17), end: d(0, 26)}]),
+      rec('Diego Martins', 'Engenharia', null, [{type: 'Recesso', start: d(0, 20), end: d(0, 24)}, {type: 'Férias', start: d(2, 2), end: d(2, 16)}]),
+      rec('Carla Souza', 'Comercial', users[3].id, [{type: 'Férias', start: d(1, 3), end: d(1, 17)}]),
+      rec('Eduardo Alves', 'Comercial', null, [{type: 'Férias', start: d(1, 12), end: d(1, 21)}], 'Clientes-chave com a Carla')
+    ]);
+  }
+  const pub = u => u && ({id: u.id, username: u.username, email: u.email, full_name: u.full_name, department: u.department, role: u.role, must_change_password: u.must_change_password, active: u.active});
+  const me = () => { const s = read(K.s, null); return s && read(K.u, []).find(u => u.id === s.id && u.active) || null; };
+  const need = (roles) => { const u = me(); if (!u) throw new Error('Sessão expirada. Entre novamente.'); if (roles && !roles.includes(u.role)) throw new Error('Sem permissão para esta ação.'); return u; };
+  return {
+    async session() { await seed(); return pub(me()); },
+    async signIn(login, pw) {
+      await seed();
+      const u = read(K.u, []).find(x => x.username === loginFrom(login));
+      if (!u || u.pw !== await hash(pw)) throw new Error('Login ou senha incorretos.');
+      if (!u.active) throw new Error('Acesso desativado. Fale com o administrador.');
+      write(K.s, {id: u.id}); return pub(u);
+    },
+    async signOut() { store.del(K.s); },
+    async changePassword(pw) { const u = need(); const all = read(K.u, []); const x = all.find(v => v.id === u.id); x.pw = await hash(pw); x.must_change_password = false; write(K.u, all); },
+    async list() { const u = need(); return read(K.d, []).filter(r => canSee(u, r)); },
+    async save(rec) {
+      const u = need(); const all = read(K.d, []); const i = all.findIndex(r => r.id === rec.id); const old = all[i];
+      const next = {...rec, id: old ? old.id : uid(), name: rec.name.trim(), department: rec.department.trim(),
+        user_id: u.role === 'admin' ? (rec.user_id || null) : (old ? old.user_id : (u.role === 'colaborador' ? u.id : null)),
+        updated_at: new Date().toISOString(), updated_by_name: u.full_name};
+      if ((old && !canEdit(u, old)) || !canWrite(u, next)) throw new Error('Sem permissão para salvar este registro.');
+      if (all.some(r => r.id !== next.id && key(r.name) === key(next.name) && key(r.department) === key(next.department))) throw new Error('Colaborador já cadastrado neste departamento.');
+      if (next.user_id && all.some(r => r.id !== next.id && r.user_id === next.user_id)) throw new Error('Este login já está vinculado a outro registro.');
+      if (old) all[i] = next; else all.push(next);
+      write(K.d, all);
+    },
+    async remove(id) { const u = need(); const all = read(K.d, []); const r = all.find(x => x.id === id); if (!r || !canDelete(u, r)) throw new Error('Sem permissão para excluir.'); write(K.d, all.filter(x => x.id !== id)); },
+    async users() { need(['admin']); return read(K.u, []).map(pub).sort((a, b) => a.full_name.localeCompare(b.full_name, 'pt-BR')); },
+    async createUser(p) {
+      need(['admin']); const all = read(K.u, []); const username = loginFrom(p.email);
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(p.email.trim())) throw new Error('E-mail inválido.');
+      if (all.some(x => x.username === username)) throw new Error('O login "' + username + '" já existe.');
+      all.push({id: uid(), username, email: p.email.trim().toLowerCase(), full_name: p.full_name.trim(), department: p.department.trim(), role: p.role, pw: await hash('1234'), must_change_password: true, active: true});
+      write(K.u, all); return username;
+    },
+    async updateUser(id, p) {
+      need(['admin']); const all = read(K.u, []); const x = all.find(v => v.id === id); if (!x) throw new Error('Usuário não encontrado.');
+      if (x.role === 'admin' && x.active && (p.role !== 'admin' || !p.active) && all.filter(v => v.role === 'admin' && v.active).length <= 1) throw new Error('É preciso manter pelo menos um administrador ativo.');
+      Object.assign(x, {full_name: p.full_name.trim(), department: p.department.trim(), role: p.role, active: p.active}); write(K.u, all);
+    },
+    async resetPassword(id) { need(['admin']); const all = read(K.u, []); const x = all.find(v => v.id === id); x.pw = await hash('1234'); x.must_change_password = true; write(K.u, all); return x.username; }
+  };
+}
+
+/* =====================================================================
+   BACKEND: SUPABASE (uso real pela equipe)
+   ===================================================================== */
+function supaBackend() {
+  if (!window.supabase) throw new Error('Biblioteca do Supabase não carregou. Verifique a internet e atualize a página.');
+  const sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+  const fail = e => {
+    if (!e) return; let m = e.message || String(e);
+    if (e.code === '23505') m = /user/.test(m) ? 'Este login já está vinculado a outro registro.' : 'Colaborador já cadastrado neste departamento.';
+    else if (e.code === '42501' || /row-level security/i.test(m)) m = 'Sem permissão para esta ação.';
+    else if (/invalid login credentials/i.test(m)) m = 'Login ou senha incorretos.';
+    else if (/banned/i.test(m)) m = 'Acesso desativado. Fale com o administrador.';
+    else if (/should be at least/i.test(m)) m = 'A senha é curta demais para a regra configurada no Supabase.';
+    else if (/same.*password|different from the old/i.test(m)) m = 'A nova senha precisa ser diferente da atual.';
+    else if (/failed to fetch|network/i.test(m)) m = 'Sem conexão com o servidor. Tente novamente.';
+    throw new Error(m);
+  };
+  async function profile() {
+    const {data: {user}} = await sb.auth.getUser(); if (!user) return null;
+    const {data, error} = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle(); fail(error);
+    if (!data || !data.active) { await sb.auth.signOut(); return null; }
+    return data;
+  }
+  const rpc = async (fn, args) => { const {data, error} = await sb.rpc(fn, args); fail(error); return data; };
+  return {
+    async session() { const {data} = await sb.auth.getSession(); return data.session ? profile() : null; },
+    async signIn(login, pw) {
+      const {error} = await sb.auth.signInWithPassword({email: loginFrom(login) + '@' + CONFIG.LOGIN_DOMAIN, password: pw}); fail(error);
+      const p = await profile(); if (!p) throw new Error('Acesso sem perfil ativo. Fale com o administrador.'); return p;
+    },
+    async signOut() { await sb.auth.signOut(); },
+    async changePassword(pw) { const {error} = await sb.auth.updateUser({password: pw}); fail(error); await rpc('mark_password_changed'); },
+    async list() { const {data, error} = await sb.from('colaboradores').select('*').order('name'); fail(error); return data || []; },
+    async save(rec) {
+      const row = {name: rec.name, department: rec.department, notes: rec.notes, periods: rec.periods};
+      if (ME.role === 'admin') row.user_id = rec.user_id || null;
+      const q = rec.id ? sb.from('colaboradores').update(row).eq('id', rec.id).select() : sb.from('colaboradores').insert(row).select();
+      const {data, error} = await q; fail(error);
+      if (!data || !data.length) throw new Error('Sem permissão para salvar este registro.');
+    },
+    async remove(id) { const {data, error} = await sb.from('colaboradores').delete().eq('id', id).select(); fail(error); if (!data || !data.length) throw new Error('Sem permissão para excluir.'); },
+    async users() { const {data, error} = await sb.from('profiles').select('*').order('full_name'); fail(error); return data || []; },
+    createUser: p => rpc('admin_create_user', {p_email: p.email, p_full_name: p.full_name, p_department: p.department, p_role: p.role}),
+    updateUser: (id, p) => rpc('admin_update_user', {p_id: id, p_full_name: p.full_name, p_department: p.department, p_role: p.role, p_active: p.active}),
+    resetPassword: id => rpc('admin_reset_password', {p_id: id})
+  };
+}
+
+/* =====================================================================
+   ESTADO E NAVEGAÇÃO
+   ===================================================================== */
+let API, ME = null, data = [], USERS = [], editing = null, onlyConflicts = false, forcedPw = false;
+
+function show(view) {
+  $('#viewLogin').hidden = view !== 'login';
+  $('#viewPw').hidden = view !== 'pw';
+  $('#viewApp').hidden = view !== 'app';
+  $('#who').hidden = !ME || view === 'login';
+  $('#btnPw').hidden = view !== 'app';
+}
+async function route() {
+  if (!ME) { show('login'); setTimeout(() => $('#loginUser').focus(), 0); return; }
+  $('#whoName').textContent = ME.full_name;
+  $('#whoRole').textContent = ROLE[ME.role]; $('#whoRole').className = 'badge ' + ME.role;
+  if (ME.must_change_password) { openPw(true); return; }
+  show('app'); await enterApp();
+}
+function openPw(forced) {
+  forcedPw = forced; $('#pwForm').reset(); $('#pwErr').textContent = '';
+  $('#pwTitle').textContent = forced ? 'Crie sua senha' : 'Alterar senha';
+  $('#pwText').textContent = forced ? 'Bem-vindo(a), ' + ME.full_name.split(' ')[0] + '! Por segurança, troque a senha inicial antes de continuar.' : 'Escolha uma nova senha para o seu login.';
+  $('#pwCancel').hidden = forced;
+  show('pw'); setTimeout(() => $('#pw1').focus(), 0);
+}
+async function enterApp() {
+  $('#tabs').hidden = ME.role !== 'admin';
+  $('#import').hidden = ME.role !== 'admin';
+  selectTab('plan');
+  $('#scope').textContent = (ME.role === 'colaborador'
+    ? 'Você vê o departamento ' + ME.department + ' e pode cadastrar e editar as suas próprias férias.'
+    : ME.role === 'lider'
+      ? 'Você vê todos os departamentos e pode editar os registros de ' + ME.department + '.'
+      : 'Acesso de administrador: todos os departamentos e a gestão de usuários.');
+  $('#deptWrap').hidden = !seesAll(ME);
+  if (!$('#month').value) $('#month').value = currentMonth();
+  await reload();
+  if (ME.role === 'admin') await loadUsers();
+}
+function selectTab(t) {
+  document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+  $('#tabPlan').hidden = t !== 'plan'; $('#tabUsers').hidden = t !== 'users';
+}
+async function reload() {
+  try {
+    data = await API.list();
+    data.forEach(r => { r.periods = Array.isArray(r.periods) ? r.periods : []; r.notes = r.notes || ''; });
+    options(); render();
+    $('#sync').textContent = (DEMO ? 'Modo demonstração · ' : 'Sincronizado · ') + data.length + ' colaborador(es) visíveis';
+    $('#new').hidden = !canCreate(ME);
+  } catch (e) { $('#sync').textContent = 'Falha ao carregar: ' + e.message; }
+}
+
+/* =====================================================================
+   PLANEJAMENTO
+   ===================================================================== */
+function options() {
+  const fd = $('#department').value, fp = $('#person').value, deps = new Map();
+  data.forEach(r => { const k = key(r.department); if (!deps.has(k)) deps.set(k, r.department.trim()); });
+  USERS.forEach(u => { const k = key(u.department); if (!deps.has(k)) deps.set(k, u.department.trim()); });
+  const inData = [...new Set(data.map(r => key(r.department)))];
+  const sorted = [...deps].filter(([k]) => inData.includes(k)).sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'));
+  $('#department').innerHTML = '<option value="">Todos os departamentos</option>' + sorted.map(([k, v]) => '<option value="' + esc(k) + '">' + esc(v) + '</option>').join('');
+  $('#department').value = sorted.some(([k]) => k === fd) ? fd : '';
+  const people = [...data].filter(r => !$('#department').value || key(r.department) === $('#department').value).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  $('#person').innerHTML = '<option value="">Todos os colaboradores</option>' + people.map(r => '<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>').join('');
+  $('#person').value = people.some(r => r.id === fp) ? fp : '';
+  $('#departments').innerHTML = [...deps.values()].sort((a, b) => a.localeCompare(b, 'pt-BR')).map(v => '<option value="' + esc(v) + '">').join('');
+}
+
+function render() {
+  const start = dt($('#month').value + '-01'); if (!Number.isFinite(start)) return;
+  const d = new Date(start); d.setUTCMonth(d.getUTCMonth() + Number($('#window').value));
+  const end = d.getTime() - day, days = (end - start) / day + 1;
+  const fd = $('#department').value, fp = $('#person').value;
+  const baseRows = data.filter(r => (!fd || key(r.department) === fd) && (!fp || r.id === fp));
+
+  // ocupação diária por departamento: dept -> dia -> Set(ids)
+  const occ = new Map();
+  for (const r of data) {
+    const k = key(r.department); let m = occ.get(k); if (!m) occ.set(k, m = new Map());
+    for (const p of r.periods) for (let t = Math.max(dt(p.start), start); t <= Math.min(dt(p.end), end); t += day) { let a = m.get(t); if (!a) m.set(t, a = new Set()); a.add(r.id); }
+  }
+  const clash = (r, t) => { const a = occ.get(key(r.department))?.get(t); return !!a && a.size > 1 && a.has(r.id); };
+  const clip = p => [Math.max(start, dt(p.start)), Math.min(end, dt(p.end))];
+  const visible = p => dt(p.start) <= end && dt(p.end) >= start;
+  const runs = (r, s, e) => { const out = []; let cur = null; for (let t = s; t <= e; t += day) { if (clash(r, t)) { if (cur && cur.e === t - day) cur.e = t; else out.push(cur = {s: t, e: t}); } } return out; };
+  const shown = r => r.periods.filter(p => visible(p) && (!onlyConflicts || runs(r, ...clip(p)).length)).sort((a, b) => a.start < b.start ? -1 : 1);
+  const rows = (onlyConflicts ? baseRows.filter(r => shown(r).length) : baseRows).sort((a, b) => key(a.department).localeCompare(key(b.department), 'pt-BR') || a.name.localeCompare(b.name, 'pt-BR'));
+
+  // alertas: sequências de dias com 2+ ausentes no mesmo departamento
+  const nameOf = new Map(data.map(r => [r.id, r.name])), deptName = new Map(); data.forEach(r => { if (!deptName.has(key(r.department))) deptName.set(key(r.department), r.department.trim()); });
+  const alerts = []; let clashDays = 0;
+  for (const k of new Set(baseRows.map(r => key(r.department)))) {
+    const m = occ.get(k); if (!m) continue; let cur = null;
+    for (let t = start; t <= end; t += day) {
+      const a = m.get(t), ok = a && a.size > 1 && (!fp || a.has(fp));
+      if (!ok) { cur = null; continue; }
+      clashDays++;
+      if (cur) { cur.e = t; cur.peak = Math.max(cur.peak, a.size); a.forEach(i => cur.ids.add(i)); }
+      else alerts.push(cur = {k, s: t, e: t, peak: a.size, ids: new Set(a)});
+    }
+  }
+
+  $('#onlyConflicts').setAttribute('aria-pressed', String(onlyConflicts));
+  $('#people').textContent = rows.length;
+  $('#count').textContent = rows.flatMap(shown).length;
+  $('#total').textContent = rows.reduce((sum, r) => sum + shown(r).reduce((s, p) => { const [a, b] = clip(p); return s + (b - a) / day + 1; }, 0), 0);
+  $('#conflicts').textContent = clashDays;
+  $('#range').textContent = fmt(iso(start)) + ' — ' + fmt(iso(end));
+
+  // cabeçalho com escala
+  const step = days > 200 ? 30 : days > 100 ? 14 : days > 40 ? 7 : 1;
+  let headers = '';
+  for (let t = start; t <= end; t += step * day) headers += '<span style="left:' + ((t - start) / day + .5) / days * 100 + '%">' + new Date(t).toLocaleDateString('pt-BR', {day: '2-digit', month: step === 1 ? undefined : 'short', timeZone: 'UTC'}) + '</span>';
+  const tToday = dt(localToday()), todayIn = tToday >= start && tToday <= end, todayLeft = ((tToday - start) / day + .5) / days * 100;
+  const todayLine = todayIn ? '<i class="today" style="left:' + todayLeft + '%"></i>' : '';
+  if (todayIn) headers += '<span class="today-label" style="left:' + todayLeft + '%">hoje</span>';
+
+  $('#gantt').style.minWidth = days > 100 ? '1100px' : '850px';
+  $('#gantt').innerHTML = '<div class="tr"><div class="person muted">COLABORADOR / DEPARTAMENTO</div><div class="head">' + headers + '</div></div>' +
+    rows.map(r => {
+      const ps = shown(r), ro = canEdit(ME, r) ? '' : ' ro';
+      return '<div class="tr"><div class="person"><button data-edit="' + esc(r.id) + '">' + esc(r.name) + '</button><small>' + esc(r.department) + '</small></div>' +
+        '<div class="track" style="--days:' + days + ';height:' + Math.max(64, ps.length * 32 + 18) + 'px">' + todayLine +
+        ps.map((p, i) => {
+          const [s, e] = clip(p), len = (dt(p.end) - dt(p.start)) / day + 1;
+          const hatches = runs(r, s, e).map(q => '<span class="hatch" style="left:' + ((q.s - s) / (e - s + day) * 100) + '%;width:' + ((q.e - q.s + day) / (e - s + day) * 100) + '%"></span>').join('');
+          return '<button data-edit="' + esc(r.id) + '" class="bar' + (p.type === 'Recesso' ? ' recesso' : '') + ro + '" style="left:' + ((s - start) / day / days * 100) + '%;width:' + ((e - s + day) / day / days * 100) + '%;top:' + (12 + i * 32) + 'px" title="' + esc(p.type + ' · ' + fmt(p.start) + ' a ' + fmt(p.end) + ' · ' + len + ' dia(s)' + (r.notes ? ' · ' + r.notes : '')) + '">' + hatches + '<span class="bar-label">' + esc(p.type) + ' · ' + fmt(p.start).slice(0, 5) + '–' + fmt(p.end).slice(0, 5) + ' · ' + len + 'd</span></button>';
+        }).join('') + '</div></div>';
+    }).join('') +
+    (!rows.length ? '<div class="empty">' + (data.length ? (onlyConflicts ? 'Nenhum conflito corresponde aos filtros e à janela selecionada.' : 'Nenhum colaborador corresponde aos filtros.') : 'Seu planejamento começa aqui.<br>Cadastre ' + (ME.role === 'colaborador' ? 'as suas férias ou recessos.' : 'o primeiro colaborador e seus períodos de férias ou recesso.')) + '</div>' : '');
+
+  $('#alerts').innerHTML = alerts.map(a => {
+    const n = (a.e - a.s) / day + 1;
+    return '<div class="alert' + (a.peak >= 3 ? ' high' : '') + '"><strong>' + esc(deptName.get(a.k)) + '</strong> · ' + fmt(iso(a.s)) + ' a ' + fmt(iso(a.e)) + ' (' + n + ' dia' + (n > 1 ? 's' : '') + ')<br>Até <b>' + a.peak + ' pessoas</b> ausentes ao mesmo tempo: ' + [...a.ids].map(i => esc(nameOf.get(i))).join(', ') + '.</div>';
+  }).join('') || '<div class="card muted">Nenhuma sobreposição encontrada na janela e nos filtros selecionados.</div>';
+}
+
+/* ---------- diálogo do colaborador ---------- */
+function period(p = {type: 'Férias', start: '', end: ''}, disabled = false) {
+  const el = document.createElement('div'); el.className = 'period';
+  el.innerHTML = '<label>Tipo<select class="type"><option>Férias</option><option>Recesso</option></select></label><label>Início<input type="date" class="start" required></label><label>Fim (inclusive)<input type="date" class="end" required></label><button type="button" aria-label="Remover período">×</button><div class="len"></div>';
+  el.querySelector('.type').value = p.type; el.querySelector('.start').value = p.start; el.querySelector('.end').value = p.end;
+  el.querySelectorAll('select,input').forEach(i => { i.disabled = disabled; i.addEventListener('input', cltCheck); });
+  const rm = el.querySelector('button'); rm.hidden = disabled; rm.onclick = () => { el.remove(); cltCheck(); };
+  $('#periods').append(el);
+}
+const readPeriods = () => [...document.querySelectorAll('#periods .period')].map(el => ({type: el.querySelector('.type').value, start: el.querySelector('.start').value, end: el.querySelector('.end').value}));
+
+function cltCheck() {
+  document.querySelectorAll('#periods .period').forEach(el => { const s = el.querySelector('.start').value, e = el.querySelector('.end').value; el.querySelector('.len').textContent = s && e && e >= s ? ((dt(e) - dt(s)) / day + 1) + ' dia(s) corridos' : ''; });
+  const ferias = readPeriods().filter(p => p.type === 'Férias' && p.start && p.end && p.end >= p.start).map(p => ({...p, n: (dt(p.end) - dt(p.start)) / day + 1}));
+  const w = [];
+  if (ferias.some(p => p.n < 5)) w.push('Nenhum período de férias pode ter menos de 5 dias corridos.');
+  if (ferias.some(p => [4, 5].includes(new Date(dt(p.start)).getUTCDay()))) w.push('Há férias começando na quinta ou sexta-feira. A CLT veda o início nos 2 dias que antecedem feriado ou o descanso semanal remunerado.');
+  const byYear = {}; ferias.forEach(p => (byYear[p.start.slice(0, 4)] ||= []).push(p.n));
+  for (const [y, ns] of Object.entries(byYear)) {
+    if (ns.length > 3) w.push('Em ' + y + ' há ' + ns.length + ' períodos de férias; a CLT permite dividir em até 3.');
+    if (ns.length > 1 && !ns.some(n => n >= 14)) w.push('Em ' + y + ' as férias estão divididas e nenhum período tem 14 dias ou mais.');
+    const tot = ns.reduce((a, b) => a + b, 0); if (tot > 30) w.push('Em ' + y + ' o total de férias é ' + tot + ' dias (acima de 30). Confira se são períodos aquisitivos diferentes.');
+  }
+  $('#clt').innerHTML = w.length ? '<div class="clt"><strong>Pontos de atenção (CLT)</strong><ul>' + w.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>Aviso apenas: não impede salvar.</div>' : '';
+}
+
+function openRecord(id) {
+  const x = data.find(r => r.id === id); editing = x ? x.id : null;
+  const editable = x ? canEdit(ME, x) : canCreate(ME);
+  $('#form').reset(); $('#validation').textContent = '';
+  $('#title').textContent = !x ? 'Cadastrar ' + (ME.role === 'colaborador' ? 'minhas férias' : 'colaborador') : editable ? 'Editar colaborador' : 'Detalhes do colaborador';
+  $('#name').value = x ? x.name : (ME.role === 'colaborador' ? ME.full_name : '');
+  $('#dept').value = x ? x.department : (ME.role === 'admin' ? ($('#department').selectedOptions[0]?.value ? $('#department').selectedOptions[0].text : '') : ME.department);
+  $('#notes').value = x ? x.notes : '';
+  $('#name').disabled = $('#notes').disabled = !editable;
+  $('#dept').disabled = !editable || ME.role !== 'admin';
+  $('#linkWrap').hidden = ME.role !== 'admin';
+  if (ME.role === 'admin') {
+    const taken = new Set(data.filter(r => r.user_id && r.id !== editing).map(r => r.user_id));
+    $('#link').innerHTML = '<option value="">Sem login vinculado</option>' + USERS.filter(u => !taken.has(u.id)).map(u => '<option value="' + esc(u.id) + '">' + esc(u.full_name + ' (' + u.username + ')') + '</option>').join('');
+    $('#link').value = x?.user_id || '';
+  }
+  $('#periods').innerHTML = '';
+  (x?.periods?.length ? x.periods : [{type: 'Férias', start: '', end: ''}]).forEach(p => period(p, !editable));
+  $('#add').hidden = $('#save').hidden = !editable;
+  $('#cancel').textContent = editable ? 'Cancelar' : 'Fechar';
+  $('#delete').hidden = !(x && canDelete(ME, x));
+  $('#meta').textContent = x && x.updated_at ? 'Última alteração: ' + new Date(x.updated_at).toLocaleString('pt-BR', {dateStyle: 'short', timeStyle: 'short'}) + (x.updated_by_name ? ' por ' + x.updated_by_name : '') : '';
+  cltCheck();
+  $('#dialog').showModal();
+}
+
+/* =====================================================================
+   USUÁRIOS (somente administrador)
+   ===================================================================== */
+async function loadUsers() {
+  try { USERS = await API.users(); } catch (e) { USERS = []; toast(e.message); }
+  $('#usersBody').innerHTML = USERS.map(u => {
+    const st = !u.active ? '<span class="status-off">Desativado</span>' : u.must_change_password ? '<span class="status-wait">Aguardando 1º acesso</span>' : 'Ativo';
+    return '<tr><td>' + esc(u.full_name) + (u.id === ME.id ? ' <span class="muted">(você)</span>' : '') + '</td><td><code>' + esc(u.username) + '</code></td><td>' + esc(u.email) + '</td><td>' + esc(u.department) + '</td><td><span class="badge ' + u.role + '">' + ROLE[u.role] + '</span></td><td>' + st + '</td><td class="act"><button data-uedit="' + esc(u.id) + '">Editar</button> <button data-ureset="' + esc(u.id) + '">Redefinir senha</button></td></tr>';
+  }).join('') || '<tr><td colspan="7" class="muted">Nenhum usuário.</td></tr>';
+  options();
+}
+const siteUrl = () => CONFIG.SITE_URL || location.href.split('#')[0].split('?')[0];
+const accessText = (name, login, reset) => 'Olá, ' + name.split(' ')[0] + '!\n\n' + (reset ? 'Sua senha do planejamento de férias foi redefinida.' : 'Seu acesso ao planejamento de férias e recessos foi criado.') + '\n\nEndereço: ' + siteUrl() + '\nLogin: ' + login + '\nSenha inicial: 1234\n\nNo primeiro acesso você vai criar uma nova senha.';
+let editingUser = null;
+function openUser(id) {
+  const u = USERS.find(x => x.id === id); editingUser = u ? u.id : null;
+  $('#userForm').reset(); $('#userErr').textContent = ''; $('#accessBox').hidden = true;
+  $('#userTitle').textContent = u ? 'Editar usuário' : 'Novo usuário';
+  $('#uEmail').value = u?.email || ''; $('#uEmail').disabled = !!u;
+  $('#uName').value = u?.full_name || ''; $('#uDept').value = u?.department || ''; $('#uRole').value = u?.role || 'colaborador';
+  $('#uActive').checked = u ? u.active : true; $('#uActiveWrap').hidden = !u;
+  $('#uLoginHint').innerHTML = u ? 'Login: <code>' + esc(u.username) + '</code>' : '';
+  $('#userSave').hidden = false; $('#userSave').textContent = u ? 'Salvar' : 'Criar acesso'; $('#userCancel').textContent = 'Cancelar';
+  $('#userDialog').showModal();
+}
+function showAccess(name, login, reset) {
+  $('#accessMsg').value = accessText(name, login, reset); $('#accessBox').hidden = false;
+  $('#userSave').hidden = true; $('#userCancel').textContent = 'Concluir';
+}
+
+/* =====================================================================
+   CSV
+   ===================================================================== */
+function parseCSV(text) {
+  text = text.replace(/^﻿/, ''); const first = text.split(/\r?\n/)[0] || ''; const sep = first.includes(';') ? ';' : ',';
+  const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === sep) { row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
+    else f += c;
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim()));
+}
+const toIso = s => { s = String(s || '').trim().replace(/^'/, ''); let m; if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/))) return s; if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) return m[3] + '-' + pad(m[2]) + '-' + pad(m[1]); return ''; };
+const clean = s => String(s || '').trim().replace(/^'(?=[=+@\-])/, '');
+
+async function importCSV(file) {
+  const rows = parseCSV(await file.text()); if (rows.length < 2) throw new Error('Arquivo vazio.');
+  const h = rows[0].map(key), col = n => h.findIndex(x => x.startsWith(n));
+  const ci = {name: col('colaborador'), dept: col('departamento'), type: col('tipo'), start: col('início') >= 0 ? col('início') : col('inicio'), end: col('fim'), notes: col('observa')};
+  if (ci.name < 0 || ci.dept < 0 || ci.start < 0 || ci.end < 0) throw new Error('Cabeçalho esperado: Colaborador; Departamento; Tipo; Início; Fim; Observações.');
+  const groups = new Map(); let skipped = 0;
+  for (const r of rows.slice(1)) {
+    const name = clean(r[ci.name]), dept = clean(r[ci.dept]), start = toIso(r[ci.start]), end = toIso(r[ci.end]);
+    if (!name || !dept || !start || !end || end < start) { skipped++; continue; }
+    const k = key(name) + '|' + key(dept); const g = groups.get(k) || {name, department: canonDept(dept), notes: '', periods: []};
+    g.periods.push({type: /recesso/i.test(r[ci.type] || '') ? 'Recesso' : 'Férias', start, end});
+    if (ci.notes >= 0 && clean(r[ci.notes]) && !g.notes) g.notes = clean(r[ci.notes]);
+    groups.set(k, g);
+  }
+  let saved = 0; const errors = [];
+  for (const g of groups.values()) {
+    const old = data.find(r => key(r.name) === key(g.name) && key(r.department) === key(g.department));
+    const periods = [...(old?.periods || [])];
+    g.periods.forEach(p => { if (!periods.some(q => q.start === p.start && q.end === p.end && q.type === p.type)) periods.push(p); });
+    try { await API.save({id: old?.id, name: old?.name || g.name, department: old?.department || g.department, notes: old?.notes || g.notes, user_id: old?.user_id || null, periods: periods.sort((a, b) => a.start < b.start ? -1 : 1)}); saved++; }
+    catch (e) { errors.push(g.name + ': ' + e.message); }
+  }
+  await reload();
+  return 'Importação concluída: ' + saved + ' colaborador(es) atualizados' + (skipped ? ', ' + skipped + ' linha(s) ignoradas' : '') + (errors.length ? '. Erros: ' + errors.join('; ') : '.');
+}
+
+/* =====================================================================
+   EVENTOS
+   ===================================================================== */
+$('#loginForm').onsubmit = async e => {
+  e.preventDefault(); $('#loginErr').textContent = ''; $('#loginBtn').disabled = true;
+  try { ME = await API.signIn($('#loginUser').value, $('#loginPw').value); $('#loginForm').reset(); await route(); }
+  catch (err) { $('#loginErr').textContent = err.message; }
+  finally { $('#loginBtn').disabled = false; }
+};
+$('#pwForm').onsubmit = async e => {
+  e.preventDefault(); const a = $('#pw1').value, b = $('#pw2').value; $('#pwErr').textContent = '';
+  if (a.length < 6) return $('#pwErr').textContent = 'Use pelo menos 6 caracteres.';
+  if (a === '1234' || /^(\d)\1+$/.test(a) || a === '123456') return $('#pwErr').textContent = 'Escolha uma senha menos óbvia.';
+  if (a !== b) return $('#pwErr').textContent = 'As senhas não conferem.';
+  $('#pwBtn').disabled = true;
+  try { await API.changePassword(a); ME.must_change_password = false; toast('Senha atualizada.'); show('app'); if (forcedPw) await enterApp(); }
+  catch (err) { $('#pwErr').textContent = err.message; }
+  finally { $('#pwBtn').disabled = false; }
+};
+$('#pwCancel').onclick = () => show('app');
+$('#btnPw').onclick = () => openPw(false);
+$('#btnOut').onclick = async () => { await API.signOut(); ME = null; data = []; USERS = []; await route(); };
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => selectTab(b.dataset.tab));
+
+$('#new').onclick = () => openRecord();
+$('#cancel').onclick = () => $('#dialog').close();
+$('#add').onclick = () => { period(); cltCheck(); };
+$('#department').onchange = () => { options(); render(); };
+['person', 'month', 'window'].forEach(x => $('#' + x).onchange = render);
+$('#onlyConflicts').onclick = () => { onlyConflicts = !onlyConflicts; render(); };
+$('#clear').onclick = () => { onlyConflicts = false; $('#department').value = ''; options(); $('#person').value = ''; $('#window').value = '1'; $('#month').value = currentMonth(); render(); };
+$('#gantt').onclick = e => { const b = e.target.closest('[data-edit]'); if (b) openRecord(b.dataset.edit); };
+
+$('#form').onsubmit = async e => {
+  e.preventDefault();
+  const periods = readPeriods(), name = $('#name').value.trim();
+  const old = data.find(r => r.id === editing);
+  const department = ME.role === 'admin' ? canonDept($('#dept').value) : (old ? old.department : ME.department);
+  let error = '';
+  if (!name || !department) error = 'Preencha nome e departamento.';
+  else if (!periods.length) error = 'Adicione pelo menos um período.';
+  else if (periods.some(p => !p.start || !p.end)) error = 'Preencha início e fim de todos os períodos.';
+  else if (periods.some(p => p.end < p.start)) error = 'A data final deve ser igual ou posterior à inicial.';
+  else if (periods.some((a, i) => periods.some((b, j) => i < j && a.start <= b.end && b.start <= a.end))) error = 'Há períodos sobrepostos para o mesmo colaborador. Ajuste as datas.';
+  else if (data.some(r => r.id !== editing && key(r.name) === key(name) && key(r.department) === key(department))) error = 'Colaborador já cadastrado neste departamento. Edite o registro existente para adicionar períodos.';
+  if (error) { $('#validation').textContent = error; return; }
+  $('#save').disabled = true;
+  try {
+    await API.save({id: editing, name, department, periods: periods.sort((a, b) => a.start < b.start ? -1 : 1), notes: $('#notes').value.trim(), user_id: ME.role === 'admin' ? ($('#link').value || null) : old?.user_id});
+    await reload(); $('#dialog').close(); toast('Planejamento salvo.');
+  } catch (err) { $('#validation').textContent = err.message; }
+  finally { $('#save').disabled = false; }
+};
+$('#delete').onclick = async () => {
+  if (!await ask('Excluir registro', 'Excluir o colaborador e todos os seus períodos? Esta ação não pode ser desfeita.', 'Excluir')) return;
+  try { await API.remove(editing); await reload(); $('#dialog').close(); toast('Registro excluído.'); }
+  catch (err) { $('#validation').textContent = err.message; }
+};
+
+$('#export').onclick = () => {
+  const fd = $('#department').value, fp = $('#person').value;
+  const rows = data.filter(r => (!fd || key(r.department) === fd) && (!fp || r.id === fp));
+  const quote = v => '"' + String(/^[=+@\-\t\r]/.test(String(v)) ? "'" + v : v).replace(/"/g, '""') + '"';
+  const csv = '﻿' + [['Colaborador', 'Departamento', 'Tipo', 'Início', 'Fim', 'Dias', 'Observações'],
+    ...rows.flatMap(r => r.periods.map(p => [r.name, r.department, p.type, p.start, p.end, (dt(p.end) - dt(p.start)) / day + 1, r.notes]))].map(r => r.map(quote).join(';')).join('\r\n');
+  $('#csvText').value = csv.replace(/^\ufeff/, '');
+  $('#csvInfo').textContent = rows.length + ' colaborador(es) no filtro atual. Baixe o arquivo ou copie o texto e cole numa planilha.';
+  $('#csvDown').onclick = () => {
+    const url = URL.createObjectURL(new Blob([csv], {type: 'text/csv;charset=utf-8'}));
+    const a = document.createElement('a'); a.href = url; a.download = 'planejamento-ferias-' + localToday() + '.csv'; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  };
+  $('#csvDialog').showModal();
+};
+$('#csvClose').onclick = () => $('#csvDialog').close();
+$('#csvCopy').onclick = async () => { const t = $('#csvText'); try { await navigator.clipboard.writeText(t.value); } catch { t.select(); document.execCommand('copy'); } toast('CSV copiado. Cole numa planilha.'); };
+$('#import').onclick = () => $('#importFile').click();
+$('#importFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { toast(await importCSV(f)); } catch (err) { toast('Falha na importação: ' + err.message); }
+};
+
+$('#newUser').onclick = () => openUser();
+$('#userCancel').onclick = () => $('#userDialog').close();
+$('#uEmail').oninput = () => { const l = loginFrom($('#uEmail').value); $('#uLoginHint').innerHTML = l ? 'Login: <code>' + esc(l) + '</code> · senha inicial: <code>1234</code>' : ''; };
+$('#usersBody').onclick = async e => {
+  const ed = e.target.closest('[data-uedit]'), rs = e.target.closest('[data-ureset]');
+  if (ed) openUser(ed.dataset.uedit);
+  if (rs) {
+    const u = USERS.find(x => x.id === rs.dataset.ureset);
+    if (!await ask('Redefinir senha', 'Redefinir a senha de ' + u.full_name + ' para 1234? A pessoa precisará criar uma nova senha no próximo acesso.', 'Redefinir')) return;
+    try { await API.resetPassword(u.id); await loadUsers(); openUser(u.id); showAccess(u.full_name, u.username, true); $('#userTitle').textContent = 'Senha redefinida'; }
+    catch (err) { toast(err.message); }
+  }
+};
+$('#userForm').onsubmit = async e => {
+  e.preventDefault(); $('#userErr').textContent = '';
+  const p = {email: $('#uEmail').value.trim(), full_name: $('#uName').value.trim(), department: $('#uDept').value.trim(), role: $('#uRole').value, active: $('#uActive').checked};
+  if (!p.full_name || !p.department) { $('#userErr').textContent = 'Preencha nome e departamento.'; return; }
+  $('#userSave').disabled = true;
+  try {
+    if (editingUser) {
+      await API.updateUser(editingUser, p); await loadUsers();
+      if (editingUser === ME.id) { ME = {...ME, ...p}; $('#whoName').textContent = ME.full_name; }
+      $('#userDialog').close(); toast('Usuário atualizado.'); await reload();
+    } else {
+      const login = await API.createUser(p); await loadUsers();
+      showAccess(p.full_name, login, false); $('#userTitle').textContent = 'Acesso criado';
+    }
+  } catch (err) { $('#userErr').textContent = err.message; }
+  finally { $('#userSave').disabled = false; }
+};
+$('#copyAccess').onclick = async () => {
+  const t = $('#accessMsg');
+  try { await navigator.clipboard.writeText(t.value); } catch { t.select(); document.execCommand('copy'); }
+  toast('Mensagem copiada.');
+};
+
+/* ---------- início ---------- */
+(async function boot() {
+  $('#demoBanner').hidden = $('#demoLogins').hidden = !DEMO;
+  $('#month').value = currentMonth();
+  try { API = DEMO ? demoBackend() : supaBackend(); }
+  catch (e) { show('login'); $('#loginErr').textContent = e.message; $('#loginBtn').disabled = true; return; }
+  try { ME = await API.session(); } catch { ME = null; }
+  await route();
+})();
+</script>
+</body>
+</html>
