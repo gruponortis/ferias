@@ -287,6 +287,10 @@ code{background:#eef3f0;padding:2px 6px;border-radius:5px}
       <thead><tr><th>Nome</th><th>Login</th><th>E-mail</th><th>Departamento</th><th>Perfil</th><th>Situação</th><th></th></tr></thead>
       <tbody id="usersBody"></tbody>
     </table></div></section>
+    <section class="panel" id="noLoginPanel" style="margin-top:24px" hidden>
+      <div class="panelhead"><div><h2>Pessoas sem login</h2><span class="muted">Registros de férias criados sem e-mail. Crie o login para que a pessoa acesse e edite as próprias férias.</span></div></div>
+      <div class="scroll"><table><thead><tr><th>Nome</th><th>Departamento</th><th>Períodos</th><th></th></tr></thead><tbody id="noLoginBody"></tbody></table></div>
+    </section>
   </section>
 </main>
 
@@ -297,6 +301,7 @@ code{background:#eef3f0;padding:2px 6px;border-radius:5px}
     <label>Nome do colaborador<input id="name" required maxlength="100"></label>
     <label>Departamento<select id="dept" required></select></label>
   </div>
+  <div id="noLoginBox" class="ysum-box" hidden style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><span>Esta pessoa ainda <b>não tem login</b>. Crie o acesso dela com o e-mail para que ela mesma lance as férias.</span><button type="button" class="primary" id="mkLogin">Criar login para esta pessoa</button></div>
   <label id="linkWrap" style="margin-top:16px">Login vinculado (permite que a pessoa edite as próprias férias)<select id="link"></select></label>
   <h3 style="font-size:16px;margin-top:24px">Períodos de ausência</h3>
   <div id="periods"></div>
@@ -639,6 +644,7 @@ async function reload() {
     $('#sync').textContent = (DEMO ? 'Modo demonstração · ' : 'Sincronizado · ') + data.length + ' colaborador(es) visíveis';
     $('#new').hidden = !canCreate(ME);
     $('#mine').hidden = !data.some(r => r.user_id === ME.id);
+    if (canManageUsers(ME)) renderNoLogin();
   } catch (e) { $('#sync').textContent = 'Falha ao carregar: ' + e.message; }
 }
 
@@ -879,6 +885,7 @@ function openRecord(id) {
   $('#name').disabled = $('#notes').disabled = !editable;
   $('#dept').disabled = !editable || ME.role !== 'admin';
   $('#linkWrap').hidden = ME.role !== 'admin';
+  $('#noLoginBox').hidden = !(x && !x.user_id && canManageUsers(ME) && canEdit(ME, x));
   if (ME.role === 'admin') {
     const taken = new Set(data.filter(r => r.user_id && r.id !== editing).map(r => r.user_id));
     $('#link').innerHTML = '<option value="">Sem login vinculado</option>' + USERS.filter(u => !taken.has(u.id)).map(u => '<option value="' + esc(u.id) + '">' + esc(u.full_name + ' (' + u.username + ')') + '</option>').join('');
@@ -939,6 +946,21 @@ function fillLink() {
   const cur = sel.dataset.touched ? sel.value : (auto ? auto.id : '');
   sel.innerHTML = '<option value="">Criar um registro novo</option>' + free.map(r => '<option value="' + esc(r.id) + '">Usar o registro existente: ' + esc(r.name) + (r.periods.length ? ' (' + r.periods.length + ' período(s))' : '') + '</option>').join('');
   sel.value = free.some(r => r.id === cur) ? cur : '';
+}
+function loginFor(recId) {
+  const r = data.find(x => x.id === recId); if (!r) return;
+  if ($('#dialog').open) $('#dialog').close();
+  openUser();
+  $('#uName').value = r.name;
+  if (ME.role === 'admin') fillDepts($('#uDept'), r.department, DEPTS);
+  fillLink(); $('#uLink').value = r.id; $('#uLink').dataset.touched = '1';
+  $('#uNoLogin').hidden = true;
+  setTimeout(() => $('#uEmail').focus(), 50);
+}
+function renderNoLogin() {
+  const rows = data.filter(r => !r.user_id && canEdit(ME, r)).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  $('#noLoginPanel').hidden = !rows.length;
+  $('#noLoginBody').innerHTML = rows.map(r => '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.department) + '</td><td>' + r.periods.length + '</td><td class="act"><button class="primary" data-mk="' + esc(r.id) + '">Criar login</button> <button data-open="' + esc(r.id) + '">Ver registro</button></td></tr>').join('');
 }
 function showAccess(name, login, reset) {
   $('#accessMsg').value = accessText(name, login, reset); $('#accessBox').hidden = false;
@@ -1080,6 +1102,8 @@ $('#uDept').onchange = fillLink;
 $('#uName').addEventListener('input', fillLink);
 $('#uLink').onchange = () => { $('#uLink').dataset.touched = '1'; };
 $('#uNoLogin').onclick = () => { $('#userDialog').close(); openRecord(); };
+$('#mkLogin').onclick = () => loginFor(editing);
+$('#noLoginBody').onclick = e => { const a = e.target.closest('[data-mk]'), b = e.target.closest('[data-open]'); if (a) loginFor(a.dataset.mk); if (b) openRecord(b.dataset.open); };
 $('#deptForm').onsubmit = async e => {
   e.preventDefault(); $('#deptErr').textContent = '';
   const name = $('#deptName').value.trim(); if (!name) { $('#deptErr').textContent = 'Informe o nome do departamento.'; return; }
