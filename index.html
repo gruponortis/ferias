@@ -48,6 +48,21 @@ select{min-width:155px}
 .head .today-label{color:#d1495b;font-weight:600;top:-4px;font-size:11px;padding:0}
 .bar{position:absolute;border:0;border-radius:5px;height:26px;padding:4px 6px;white-space:nowrap;overflow:hidden;font-size:13px;color:#fff;background:#267c60;min-width:3px;text-align:left}
 .bar.recesso{background:#6b7bc4}.bar.ro{cursor:default}
+.bar:not(.ro):hover{filter:brightness(1.12);transform:translateY(-1px)}
+.bar.past{background:#cfe3da;color:#16463a}.bar.recesso.past{background:#d9ddf2;color:#2c356b}
+.person button.can{cursor:pointer;border-radius:4px}
+.person button.can:hover,.person button.can:focus-visible{color:#17634c;text-decoration:underline;text-underline-offset:3px}
+.person button.can::after{content:" ✎";font-weight:400;color:#17634c;opacity:0;transition:opacity .15s}
+.person button.can:hover::after,.person button.can:focus-visible::after{opacity:1}
+.person button.ro{cursor:default}
+.ufilters{display:flex;gap:12px;flex-wrap:wrap;align-items:end;padding:16px 18px;border-bottom:1px solid #e3ebe5}
+.ufilters label{flex:1;min-width:150px}.ufilters label.q{flex:2;min-width:220px}
+.sbar{position:relative;height:12px;border-radius:6px;background:#e7eeea;overflow:hidden;min-width:160px}
+.sbar i{position:absolute;top:0;bottom:0}.sbar .g{background:#17634c}.sbar .p{background:#8cc5ae}
+.st-ok{color:#17634c;font-weight:600}.st-plan{color:#2a6f8f;font-weight:600}.st-miss{color:#a66b21;font-weight:600}.st-none{color:#a74444;font-weight:600}
+.pchip{display:inline-block;font-size:12px;border-radius:10px;padding:1px 8px;margin:2px 4px 2px 0;background:#e7f2ec;color:#16463a;white-space:nowrap}
+.pchip.fut{background:#fff;border:1px dashed #8cc5ae}.pchip.rec{background:#e9ecf8;color:#2c356b}
+#saldoBody td{vertical-align:top}#saldoBody .nm{font-weight:600;cursor:pointer}#saldoBody .nm:hover{text-decoration:underline;color:#17634c}
 .hatch{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(255,196,75,.95) 0 3px,rgba(255,196,75,.12) 3px 7px);box-shadow:inset 1px 0 #e2a744,inset -1px 0 #e2a744;pointer-events:none}
 .bar-label{position:relative;z-index:1}
 .bar.cf-d{box-shadow:0 0 0 2px #fff,0 0 0 4px #e8a317}.bar.cf-h{box-shadow:0 0 0 2px #fff,0 0 0 4px #c0392b}.bar.cf-m{box-shadow:0 0 0 2px #fff,0 0 0 4px #8e44ad}
@@ -235,6 +250,7 @@ code{background:#eef3f0;padding:2px 6px;border-radius:5px}
   <nav class="tabs" id="tabs" hidden>
     <button data-tab="plan" aria-selected="true">Planejamento</button>
     <button data-tab="users" aria-selected="false">Usuários e acessos</button>
+    <button data-tab="saldo" aria-selected="false" id="tabSaldoBtn" hidden>Saldo de férias</button>
   </nav>
 
   <section id="tabPlan">
@@ -259,7 +275,7 @@ code{background:#eef3f0;padding:2px 6px;border-radius:5px}
     <section class="panel">
       <div class="panelhead">
         <div><h2 id="range">Linha do tempo</h2><span class="muted">Clique no colaborador ou no período para ver ou editar.</span></div>
-        <div class="legend"><span><i style="background:#267c60"></i>Férias</span><span><i style="background:#6b7bc4"></i>Recesso</span><span><i style="background:#e8a317;height:5px;width:16px;border-radius:3px"></i>Ausência simultânea</span><span><i style="background:#c0392b;height:5px;width:16px;border-radius:3px"></i>3+ ausentes</span><span id="lgMg" hidden><i style="background:#8e44ad;height:5px;width:16px;border-radius:3px"></i>Conflito Gestão × Líderes</span><span><i style="background:#d1495b;width:3px"></i>Hoje</span><span><i style="background:#f6cccc;border:1px dashed #e07070"></i>Feriado</span></div>
+        <div class="legend"><span><i style="background:#267c60"></i>Férias</span><span><i style="background:#6b7bc4"></i>Recesso</span><span><i style="background:#cfe3da;border:1px solid #9cc8b6"></i>✓ Já gozado</span><span><i style="background:#e8a317;height:5px;width:16px;border-radius:3px"></i>Ausência simultânea</span><span><i style="background:#c0392b;height:5px;width:16px;border-radius:3px"></i>3+ ausentes</span><span id="lgMg" hidden><i style="background:#8e44ad;height:5px;width:16px;border-radius:3px"></i>Conflito Gestão × Líderes</span><span><i style="background:#d1495b;width:3px"></i>Hoje</span><span><i style="background:#f6cccc;border:1px dashed #e07070"></i>Feriado</span></div>
       </div>
       <div class="scroll"><div id="gantt"></div></div>
       <div class="holidays" id="holidays"></div>
@@ -301,13 +317,35 @@ code{background:#eef3f0;padding:2px 6px;border-radius:5px}
       <div class="panelhead"><div><h2>Pedidos de nova senha</h2><span class="muted">Pessoas que clicaram em "Esqueceu sua senha?". Redefina para 1234 e envie a mensagem de acesso; no próximo login a pessoa cria uma senha nova.</span></div></div>
       <div class="scroll"><table><thead><tr><th>Nome</th><th>Login</th><th>Departamento</th><th>Pedido em</th><th></th></tr></thead><tbody id="reqBody"></tbody></table></div>
     </section>
-    <section class="panel"><div class="scroll"><table>
+    <section class="panel">
+      <div class="ufilters">
+        <label class="q">Buscar<input id="uQ" placeholder="Nome, login ou e-mail"></label>
+        <label>Departamento<select id="uDeptF"><option value="">Todos</option></select></label>
+        <label>Perfil<select id="uRoleF"><option value="">Todos</option><option value="admin">Administrador</option><option value="lider">Líder</option><option value="colaborador">Colaborador</option></select></label>
+        <label>Situação<select id="uStF"><option value="">Todas</option><option value="ativo">Ativo</option><option value="wait">Aguardando 1º acesso</option><option value="off">Desativado</option></select></label>
+        <span class="muted" id="uCount" style="padding-bottom:12px"></span>
+      </div>
+      <div class="scroll"><table>
       <thead><tr><th>Nome</th><th>Login</th><th>E-mail</th><th>Departamento</th><th>Perfil</th><th>Situação</th><th></th></tr></thead>
       <tbody id="usersBody"></tbody>
     </table></div></section>
     <section class="panel" id="noLoginPanel" style="margin-top:24px" hidden>
       <div class="panelhead"><div><h2>Pessoas sem login</h2><span class="muted">Registros de férias criados sem e-mail. Crie o login para que a pessoa acesse e edite as próprias férias.</span></div></div>
       <div class="scroll"><table><thead><tr><th>Nome</th><th>Departamento</th><th>Períodos</th><th></th></tr></thead><tbody id="noLoginBody"></tbody></table></div>
+    </section>
+  </section>
+
+  <section id="tabSaldo" hidden>
+    <div class="intro"><div><h1>Saldo de férias</h1><p>Controle histórico por ano: dias de férias já gozados, programados e quanto falta para completar 30 dias. Conta só dias descontados (pela convenção, 24/12, 25/12, 31/12 e 01/01 não descontam); recesso aparece à parte.</p></div></div>
+    <div class="cards" id="saldoCards"></div>
+    <section class="panel">
+      <div class="ufilters">
+        <label>Ano<select id="sYear"></select></label>
+        <label>Departamento<select id="sDept"></select></label>
+        <label>Situação<select id="sSit"><option value="">Todas</option><option value="ok">30 dias gozados</option><option value="plan">30 dias com programação</option><option value="miss">Faltam dias</option><option value="none">Sem férias no ano</option></select></label>
+        <label class="q">Buscar<input id="sQ" placeholder="Nome do colaborador"></label>
+      </div>
+      <div class="scroll"><table><thead><tr><th>Colaborador</th><th>Gozados</th><th>Programados</th><th style="min-width:200px">Progresso (30 dias)</th><th>Situação</th><th>Períodos no ano</th></tr></thead><tbody id="saldoBody"></tbody></table></div>
     </section>
   </section>
 </main>
@@ -632,6 +670,7 @@ function openPw(forced) {
 async function enterApp() {
   const admin = ME.role === 'admin', lider = ME.role === 'lider';
   $('#tabs').hidden = !canManageUsers(ME);
+  $('#tabSaldoBtn').hidden = !admin;
   $('#tabs [data-tab=users]').textContent = admin ? 'Usuários e acessos' : 'Equipe de ' + ME.department;
   $('#import').hidden = $('#export').hidden = !admin;
   $('#deptPanel').hidden = $('#roleCards').hidden = !admin;
@@ -665,7 +704,8 @@ function fillDepts(sel, value, list) {
 }
 function selectTab(t) {
   document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
-  $('#tabPlan').hidden = t !== 'plan'; $('#tabUsers').hidden = t !== 'users';
+  $('#tabPlan').hidden = t !== 'plan'; $('#tabUsers').hidden = t !== 'users'; $('#tabSaldo').hidden = t !== 'saldo';
+  if (t === 'saldo') renderSaldo();
 }
 async function reload() {
   try {
@@ -673,6 +713,7 @@ async function reload() {
     try { LEADERS = new Set(await API.leaderIds()); } catch (e) { LEADERS = new Set(); }
     data.forEach(r => { r.periods = Array.isArray(r.periods) ? r.periods : []; r.notes = r.notes || ''; });
     options(); render();
+    if (!$('#tabSaldo').hidden) renderSaldo();
     $('#sync').textContent = (DEMO ? 'Modo demonstração · ' : 'Sincronizado · ') + data.length + ' colaborador(es) visíveis';
     $('#new').hidden = !canCreate(ME);
     $('#mine').hidden = !data.some(r => r.user_id === ME.id);
@@ -887,7 +928,7 @@ function render() {
       const ps = shown(r), ro = canEdit(ME, r) ? '' : ' ro';
       const ys = restStats(r.periods)[refY] || {ferias: 0, naoDesc: 0, recesso: 0};
       const ysTip = esc('Em ' + refY + ': ' + ys.ferias + ' dia(s) de férias descontados' + (ys.naoDesc ? ', ' + ys.naoDesc + ' não descontado(s) pela convenção (' + NAO_DESC_TXT + ')' : '') + (ys.recesso ? ', ' + ys.recesso + ' de recesso' : ''));
-      return '<div class="tr"><div class="person"><button data-edit="' + esc(r.id) + '">' + esc(r.name) + '</button><small>' + esc(r.department) + (r.user_id && LEADERS.has(r.user_id) && DEPTS.some(d => key(d.name) === key(r.department) && !d.oculto) ? ' · <b>Líder</b>' : '') + '</small>' + (ME.role === 'admin' ? '<small class="ysum" title="' + ysTip + '">Férias ' + refY + ': ' + ys.ferias + ' dia' + (ys.ferias === 1 ? '' : 's') + (ys.recesso ? ' · recesso ' + ys.recesso : '') + '</small>' : '') + '</div>' +
+      return '<div class="tr"><div class="person"><button data-edit="' + esc(r.id) + '" class="' + (canEdit(ME, r) ? 'can" title="Clique para editar' : 'ro" title="Somente visualização') + '">' + esc(r.name) + '</button><small>' + esc(r.department) + (r.user_id && LEADERS.has(r.user_id) && DEPTS.some(d => key(d.name) === key(r.department) && !d.oculto) ? ' · <b>Líder</b>' : '') + '</small>' + (ME.role === 'admin' ? '<small class="ysum" title="' + ysTip + '">Férias ' + refY + ': ' + ys.ferias + ' dia' + (ys.ferias === 1 ? '' : 's') + (ys.recesso ? ' · recesso ' + ys.recesso : '') + '</small>' : '') + '</div>' +
         '<div class="track' + (coarse ? ' coarse' : '') + '" style="--days:' + days + ';min-height:' + Math.max(64, ps.length * 44 + 16) + 'px">' + bg + todayLine +
         ps.map((p, i) => {
           const [s, e] = clip(p), len = (dt(p.end) - dt(p.start)) / day + 1;
@@ -896,9 +937,10 @@ function render() {
           const peak = q => { let m = 0; for (let t = q.s; t <= q.e; t += day) m = Math.max(m, occ.get(key(r.department))?.get(t)?.size || 0); return m; };
           const bands = rd.map(q => '<span class="cfb d' + (peak(q) >= 3 ? ' hi' : '') + '" style="left:' + L(q.s) + '%;width:' + W(q.s, q.e) + '%;top:' + (top + 30) + 'px"></span>').join('') +
             rm.map(q => '<span class="cfb m" style="left:' + L(q.s) + '%;width:' + W(q.s, q.e) + '%;top:' + (top + (rd.length ? 37 : 30)) + 'px"></span>').join('');
+          const done = dt(p.end) < tToday, now = !done && dt(p.start) <= tToday;
           const cf = rm.length ? ' cf-m' : rd.some(q => peak(q) >= 3) ? ' cf-h' : rd.length ? ' cf-d' : '';
           const tip = (rd.length ? ' · ausência simultânea na área' : '') + (rm.length ? ' · conflito Gestão × Líderes' : '');
-          return '<button data-edit="' + esc(r.id) + '" class="bar' + (p.type === 'Recesso' ? ' recesso' : '') + ro + cf + '" style="left:' + L(s) + '%;width:' + W(s, e) + '%;top:' + top + 'px" title="' + esc(p.type + ' · ' + fmt(p.start) + ' a ' + fmt(p.end) + ' · ' + len + ' dia(s)' + tip + (r.notes ? ' · ' + r.notes : '')) + '"><span class="bar-label">' + (cf ? '⚠ ' : '') + esc(p.type) + ' · ' + fmt(p.start).slice(0, 5) + '–' + fmt(p.end).slice(0, 5) + ' · ' + len + 'd</span></button>' + bands;
+          return '<button data-edit="' + esc(r.id) + '" class="bar' + (p.type === 'Recesso' ? ' recesso' : '') + (done ? ' past' : '') + ro + cf + '" style="left:' + L(s) + '%;width:' + W(s, e) + '%;top:' + top + 'px" title="' + esc(p.type + ' · ' + fmt(p.start) + ' a ' + fmt(p.end) + ' · ' + len + ' dia(s)' + (done ? ' · já gozado' : now ? ' · em gozo' : '') + tip + (r.notes ? ' · ' + r.notes : '')) + '"><span class="bar-label">' + (cf ? '⚠ ' : '') + (done ? '✓ ' : now ? '▶ ' : '') + esc(p.type) + ' · ' + fmt(p.start).slice(0, 5) + '–' + fmt(p.end).slice(0, 5) + ' · ' + len + 'd</span></button>' + bands;
         }).join('') + '</div></div>';
     }).join('') +
     (!rows.length ? '<div class="empty">' + (data.length ? (onlyConflicts ? 'Nenhum conflito corresponde aos filtros e à janela selecionada.' : 'Nenhum colaborador corresponde aos filtros.') : 'Seu planejamento começa aqui.<br>Cadastre ' + (ME.role === 'colaborador' ? 'as suas férias ou recessos.' : 'o primeiro colaborador e seus períodos de férias ou recesso.')) + '</div>' : '');
@@ -973,13 +1015,73 @@ function openRecord(id) {
    ===================================================================== */
 async function loadUsers() {
   try { USERS = await API.users(); } catch (e) { USERS = []; toast(e.message); }
-  $('#usersBody').innerHTML = USERS.map(u => {
-    const st = !u.active ? '<span class="status-off">Desativado</span>' : u.must_change_password ? '<span class="status-wait">Aguardando 1º acesso</span>' : 'Ativo';
-    return '<tr><td>' + esc(u.full_name) + (u.id === ME.id ? ' <span class="muted">(você)</span>' : '') + '</td><td><code>' + esc(u.username) + '</code></td><td>' + esc(u.email) + '</td><td>' + esc(u.department) + '</td><td><span class="badge ' + u.role + '">' + ROLE[u.role] + '</span></td><td>' + st + '</td><td class="act">' + (canManageUser(ME, u) ? '<button data-uedit="' + esc(u.id) + '">Editar</button> <button data-ureset="' + esc(u.id) + '">Redefinir senha</button>' : '') + '</td></tr>';
-  }).join('') || '<tr><td colspan="7" class="muted">Nenhum usuário.</td></tr>';
+  const dsel = $('#uDeptF'), dv = dsel.value, ds = [...new Set(USERS.map(u => u.department.trim()))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  dsel.innerHTML = '<option value="">Todos</option>' + ds.map(d => '<option>' + esc(d) + '</option>').join(''); dsel.value = ds.includes(dv) ? dv : '';
+  renderUsers();
   options();
   await loadRequests();
 }
+function renderUsers() {
+  const q = key($('#uQ').value), fd = $('#uDeptF').value, fr = $('#uRoleF').value, fs = $('#uStF').value;
+  const stOf = u => !u.active ? 'off' : u.must_change_password ? 'wait' : 'ativo';
+  const list = USERS.filter(u => (!q || [u.full_name, u.username, u.email].some(v => key(v || '').includes(q))) && (!fd || u.department.trim() === fd) && (!fr || u.role === fr) && (!fs || stOf(u) === fs));
+  $('#uCount').textContent = list.length === USERS.length ? USERS.length + ' usuário(s)' : list.length + ' de ' + USERS.length;
+  $('#usersBody').innerHTML = list.map(u => {
+    const st = !u.active ? '<span class="status-off">Desativado</span>' : u.must_change_password ? '<span class="status-wait">Aguardando 1º acesso</span>' : 'Ativo';
+    return '<tr><td>' + esc(u.full_name) + (u.id === ME.id ? ' <span class="muted">(você)</span>' : '') + '</td><td><code>' + esc(u.username) + '</code></td><td>' + esc(u.email) + '</td><td>' + esc(u.department) + '</td><td><span class="badge ' + u.role + '">' + ROLE[u.role] + '</span></td><td>' + st + '</td><td class="act">' + (canManageUser(ME, u) ? '<button data-uedit="' + esc(u.id) + '">Editar</button> <button data-ureset="' + esc(u.id) + '">Redefinir senha</button>' : '') + '</td></tr>';
+  }).join('') || '<tr><td colspan="7" class="muted">' + (USERS.length ? 'Nenhum usuário corresponde aos filtros.' : 'Nenhum usuário.') + '</td></tr>';
+}
+['#uQ', '#uDeptF', '#uRoleF', '#uStF'].forEach(id => $(id).addEventListener(id === '#uQ' ? 'input' : 'change', renderUsers));
+
+/* ---------- saldo de férias (histórico anual) ---------- */
+function saldoOf(periods, y, today) {
+  const o = {g: 0, p: 0, nd: 0, rec: 0, list: []};
+  for (const pr of periods) {
+    if (!pr.start || !pr.end || pr.end < pr.start) continue;
+    let inY = false;
+    for (let t = dt(pr.start); t <= dt(pr.end); t += day) {
+      const d = iso(t); if (d.slice(0, 4) !== y) continue; inY = true;
+      if (pr.type === 'Recesso') o.rec++; else if (NAO_DESC.has(d.slice(5))) o.nd++; else if (t <= today) o.g++; else o.p++;
+    }
+    if (inY) o.list.push(pr);
+  }
+  o.list.sort((a, b) => a.start.localeCompare(b.start)); return o;
+}
+function renderSaldo() {
+  if (ME.role !== 'admin') return;
+  const today = dt(localToday()), cy = localToday().slice(0, 4);
+  const years = new Set([cy]); data.forEach(r => r.periods.forEach(p => { if (p.start) years.add(p.start.slice(0, 4)); if (p.end) years.add(p.end.slice(0, 4)); }));
+  const ys = [...years].sort().reverse(), yv = $('#sYear').value;
+  $('#sYear').innerHTML = ys.map(y => '<option>' + y + '</option>').join(''); $('#sYear').value = ys.includes(yv) ? yv : cy;
+  const dv = $('#sDept').value, ds = [...new Set(data.map(r => r.department.trim()))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  $('#sDept').innerHTML = '<option value="">Todos</option>' + ds.map(d => '<option>' + esc(d) + '</option>').join(''); $('#sDept').value = ds.includes(dv) ? dv : '';
+  const y = $('#sYear').value, fd = $('#sDept').value, fs = $('#sSit').value, q = key($('#sQ').value);
+  const past = y < cy, rows = data.map(r => {
+    const o = saldoOf(r.periods, y, today), tot = o.g + o.p;
+    o.sit = o.g >= 30 ? 'ok' : tot >= 30 ? 'plan' : tot === 0 ? 'none' : 'miss'; return {r, o, tot};
+  }).filter(x => !fd || x.r.department.trim() === fd);
+  const cnt = k => rows.filter(x => x.o.sit === k).length;
+  $('#saldoCards').innerHTML = [['30 dias gozados', cnt('ok'), '#17634c'], ['30 dias com programação', cnt('plan'), '#2a6f8f'], ['Faltam dias', cnt('miss'), '#a66b21'], ['Sem férias em ' + y, cnt('none'), '#a74444']]
+    .map(([t, n, c]) => '<div class="card"><span>' + t + '</span><b style="color:' + c + '">' + n + '</b></div>').join('');
+  const SIT = {ok: ['st-ok', '✓ 30 dias gozados'], plan: ['st-plan', '30 dias (com programação)'], miss: ['st-miss', ''], none: ['st-none', 'Sem férias no ano']};
+  const list = rows.filter(x => (!fs || x.o.sit === fs) && (!q || key(x.r.name).includes(q)))
+    .sort((a, b) => a.r.name.localeCompare(b.r.name, 'pt-BR'));
+  $('#saldoBody').innerHTML = list.map(({r, o, tot}) => {
+    const g = Math.min(o.g, 30) / 30 * 100, pp = Math.min(o.p, Math.max(0, 30 - o.g)) / 30 * 100;
+    const falta = Math.max(0, 30 - tot), [cls, txt] = SIT[o.sit];
+    const sit = o.sit === 'miss' ? 'Faltam ' + falta + ' dia' + (falta > 1 ? 's' : '') + (past ? ' (ano encerrado)' : '') : txt;
+    const extra = tot > 30 ? '<div style="color:#a74444;font-weight:400">⚠ ' + (tot - 30) + ' dia(s) acima de 30 — conferir</div>' : '';
+    const chips = o.list.map(p => { const done = dt(p.end) <= today, n = descCount(p);
+      return '<span class="pchip' + (p.type === 'Recesso' ? ' rec' : '') + (done ? '' : ' fut') + '" title="' + esc(p.type + ' · ' + fmt(p.start) + ' a ' + fmt(p.end) + (done ? ' · gozado' : ' · programado')) + '">' + (done ? '✓ ' : '') + fmt(p.start).slice(0, 5) + '–' + fmt(p.end).slice(0, 5) + (p.type === 'Recesso' ? ' · recesso' : ' · ' + n + 'd') + '</span>'; }).join('') || '<span class="muted">—</span>';
+    return '<tr><td><span class="nm" data-open="' + esc(r.id) + '" title="Abrir registro">' + esc(r.name) + '</span><div class="muted">' + esc(r.department) + '</div></td><td><b>' + o.g + '</b></td><td>' + o.p + '</td>' +
+      '<td><div class="sbar" title="' + o.g + ' gozados + ' + o.p + ' programados de 30"><i class="g" style="left:0;width:' + g + '%"></i><i class="p" style="left:' + g + '%;width:' + pp + '%"></i></div><div class="muted" style="margin-top:4px">' + tot + ' de 30' + (o.nd ? ' · ' + o.nd + ' não desc.' : '') + (o.rec ? ' · recesso ' + o.rec : '') + '</div></td>' +
+      '<td class="' + cls + '">' + sit + extra + '</td><td>' + chips + '</td></tr>';
+  }).join('') || '<tr><td colspan="6" class="muted">Ninguém corresponde aos filtros.</td></tr>';
+}
+['#sYear', '#sDept', '#sSit'].forEach(id => $(id).addEventListener('change', renderSaldo));
+$('#sQ').addEventListener('input', renderSaldo);
+$('#saldoBody').onclick = e => { const n = e.target.closest('[data-open]'); if (n) openRecord(n.dataset.open); };
+
 async function loadRequests() {
   let reqs = []; try { reqs = await API.resetRequests(); } catch (e) { reqs = []; }
   reqs = reqs.filter(r => USERS.some(u => u.id === r.user_id));
