@@ -55,6 +55,8 @@ select{min-width:155px}
 .person button.can::after{content:" ✎";font-weight:400;color:#17634c;opacity:0;transition:opacity .15s}
 .person button.can:hover::after,.person button.can:focus-visible::after{opacity:1}
 .person button.ro{cursor:default}
+.aviso{display:flex;gap:14px;align-items:flex-start;background:#fff4d6;border:1px solid #f0c75e;border-left:6px solid #e0a400;border-radius:10px;padding:14px 18px;margin:0 0 22px;color:#5c4300;font-size:15px;line-height:1.5}
+.aviso strong{color:#3f2e00}.aviso-ico{font-size:22px;line-height:1.2}
 .ufilters{display:flex;gap:12px;flex-wrap:wrap;align-items:end;padding:16px 18px;border-bottom:1px solid #e3ebe5}
 .ufilters label{flex:1;min-width:150px}.ufilters label.q{flex:2;min-width:220px}
 .sbar{position:relative;height:12px;border-radius:6px;background:#e7eeea;overflow:hidden;min-width:160px}
@@ -247,6 +249,7 @@ code{background:#eef3f0;padding:2px 6px;border-radius:5px}
       </div>
     </div>
   </section>
+  <div class="aviso" role="note"><span class="aviso-ico" aria-hidden="true">⚠️</span><div><strong>Atenção: este painel não é um controle oficial de férias.</strong><br>Ele serve apenas para ajudar a organizar a área. Para confirmar períodos de férias, saldos e débitos, procure o departamento de <strong>Gente &amp; Gestão</strong>.</div></div>
   <nav class="tabs" id="tabs" hidden>
     <button data-tab="plan" aria-selected="true">Planejamento</button>
     <button data-tab="users" aria-selected="false">Usuários e acessos</button>
@@ -336,6 +339,7 @@ code{background:#eef3f0;padding:2px 6px;border-radius:5px}
   </section>
 
   <section id="tabSaldo" hidden>
+    <div class="aviso" role="note"><span class="aviso-ico" aria-hidden="true">⚠️</span><div><strong>Atenção: este painel não é um controle oficial de férias.</strong><br>Ele serve apenas para ajudar a organizar a área. Para confirmar períodos de férias, saldos e débitos, procure o departamento de <strong>Gente &amp; Gestão</strong>.</div></div>
     <div class="intro"><div><h1>Saldo de férias</h1><p>Controle histórico por ano: dias de férias já gozados, programados e quanto falta para completar 30 dias. Conta só dias descontados (pela convenção, 24/12, 25/12, 31/12 e 01/01 não descontam); recesso aparece à parte.</p></div></div>
     <div class="cards" id="saldoCards"></div>
     <section class="panel">
