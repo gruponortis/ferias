@@ -294,7 +294,7 @@ code{background:#eef3f0;padding:2px 6px;border-radius:5px}
     </section>
     <div class="cards" id="roleCards" style="grid-template-columns:repeat(3,1fr)">
       <div class="card"><span><span class="badge admin">Administrador</span></span><p style="margin:10px 0 0;font-size:14px">Acesso total: vê e edita todos os departamentos, cria logins, define perfis e redefine senhas.</p></div>
-      <div class="card"><span><span class="badge lider">Líder</span></span><p style="margin:10px 0 0;font-size:14px">Vê o planejamento de todos os departamentos. Cadastra colaboradores e edita registros só do próprio departamento, e vê apenas a própria equipe.</p></div>
+      <div class="card"><span><span class="badge lider">Líder</span></span><p style="margin:10px 0 0;font-size:14px">Vê a própria equipe, a Gestão e os demais líderes. Cadastra colaboradores e edita registros só do próprio departamento.</p></div>
       <div class="card"><span><span class="badge">Colaborador</span></span><p style="margin:10px 0 0;font-size:14px">Vê apenas o próprio departamento. Cadastra e edita só as próprias férias.</p></div>
     </div>
     <section class="panel" id="reqPanel" style="margin-bottom:24px;border-color:#e3c27a" hidden>
@@ -423,7 +423,10 @@ function toast(s) { const t = $('#toast'); t.textContent = s; t.style.display = 
 /* ---------- regras de permissão (espelham as regras do banco) ---------- */
 const isHiddenDept = (d, list = DEPTS) => list.some(x => key(x.name) === key(d) && x.oculto);
 const seesAll = u => u.role === 'admin' || u.role === 'lider';
-const canSee = (u, r, list = DEPTS) => u.role === 'admin' || (u.role === 'lider' && !isHiddenDept(r.department, list)) || key(r.department) === key(u.department);
+// Visibilidade: admin vê tudo; líder vê a própria área, a Gestão e todos os líderes; colaborador vê só a própria área
+let LEADERS = new Set();
+const canSee = (u, r, list = DEPTS, leaders = LEADERS) => u.role === 'admin' || key(r.department) === key(u.department) ||
+  (u.role === 'lider' && (isHiddenDept(r.department, list) || (!!r.user_id && leaders.has(r.user_id))));
 const canEdit = (u, r) => u.role === 'admin' || (u.role === 'lider' && key(r.department) === key(u.department)) || (u.role === 'colaborador' && r.user_id === u.id);
 const canWrite = (u, r) => u.role === 'admin' || (u.role === 'lider' && key(r.department) === key(u.department)) || (u.role === 'colaborador' && r.user_id === u.id && key(r.department) === key(u.department));
 const canDelete = (u, r) => u.role === 'admin' || (u.role === 'lider' && key(r.department) === key(u.department));
@@ -484,7 +487,8 @@ function demoBackend() {
       if (read(K.u, []).some(x => key(x.department) === key(name)) || read(K.d, []).some(x => key(x.department) === key(name))) throw new Error('Há pessoas neste departamento. Mova-as antes de excluí-lo.');
       write(K.dep, deps().filter(d => key(d.name) !== key(name)));
     },
-    async list() { const u = need(); return read(K.d, []).filter(r => canSee(u, r, deps())); },
+    async list() { const u = need(); const L = new Set(read(K.u, []).filter(v => v.role !== 'colaborador').map(v => v.id)); return read(K.d, []).filter(r => canSee(u, r, deps(), L)); },
+    async leaderIds() { need(); return read(K.u, []).filter(v => v.role !== 'colaborador').map(v => v.id); },
     async save(rec) {
       const u = need(); const all = read(K.d, []); const i = all.findIndex(r => r.id === rec.id); const old = all[i];
       const dep = canonDept(rec.department, deps()); if (!dep) throw new Error('Departamento "' + rec.department + '" não cadastrado.');
@@ -578,6 +582,7 @@ function supaBackend() {
     async signOut() { await sb.auth.signOut(); },
     async changePassword(pw) { const {error} = await sb.auth.updateUser({password: pw}); fail(error); await rpc('mark_password_changed'); },
     async list() { const {data, error} = await sb.from('colaboradores').select('*').order('name'); fail(error); return data || []; },
+    async leaderIds() { try { return (await rpc('leader_ids', {})) || []; } catch (e) { return []; } },
     async save(rec) {
       const row = {name: rec.name, department: rec.department, notes: rec.notes, periods: rec.periods};
       if (ME.role === 'admin') row.user_id = rec.user_id || null;
@@ -637,7 +642,7 @@ async function enterApp() {
   $('#scope').textContent = (ME.role === 'colaborador'
     ? 'Você vê o departamento ' + ME.department + ' e pode cadastrar e editar as suas próprias férias.'
     : lider
-      ? 'Você vê o planejamento de todos os departamentos e edita os registros de ' + ME.department + '.'
+      ? 'Você vê a sua equipe de ' + ME.department + ', a Gestão e os demais líderes, e edita os registros de ' + ME.department + '.'
       : 'Acesso de administrador: todos os departamentos, usuários e relatórios.');
   $('#deptWrap').hidden = !seesAll(ME);
   if (!$('#month').value) $('#month').value = currentMonth();
@@ -665,6 +670,7 @@ function selectTab(t) {
 async function reload() {
   try {
     data = await API.list();
+    try { LEADERS = new Set(await API.leaderIds()); } catch (e) { LEADERS = new Set(); }
     data.forEach(r => { r.periods = Array.isArray(r.periods) ? r.periods : []; r.notes = r.notes || ''; });
     options(); render();
     $('#sync').textContent = (DEMO ? 'Modo demonstração · ' : 'Sincronizado · ') + data.length + ' colaborador(es) visíveis';
@@ -881,7 +887,7 @@ function render() {
       const ps = shown(r), ro = canEdit(ME, r) ? '' : ' ro';
       const ys = restStats(r.periods)[refY] || {ferias: 0, naoDesc: 0, recesso: 0};
       const ysTip = esc('Em ' + refY + ': ' + ys.ferias + ' dia(s) de férias descontados' + (ys.naoDesc ? ', ' + ys.naoDesc + ' não descontado(s) pela convenção (' + NAO_DESC_TXT + ')' : '') + (ys.recesso ? ', ' + ys.recesso + ' de recesso' : ''));
-      return '<div class="tr"><div class="person"><button data-edit="' + esc(r.id) + '">' + esc(r.name) + '</button><small>' + esc(r.department) + '</small>' + (ME.role === 'admin' ? '<small class="ysum" title="' + ysTip + '">Férias ' + refY + ': ' + ys.ferias + ' dia' + (ys.ferias === 1 ? '' : 's') + (ys.recesso ? ' · recesso ' + ys.recesso : '') + '</small>' : '') + '</div>' +
+      return '<div class="tr"><div class="person"><button data-edit="' + esc(r.id) + '">' + esc(r.name) + '</button><small>' + esc(r.department) + (r.user_id && LEADERS.has(r.user_id) && DEPTS.some(d => key(d.name) === key(r.department) && !d.oculto) ? ' · <b>Líder</b>' : '') + '</small>' + (ME.role === 'admin' ? '<small class="ysum" title="' + ysTip + '">Férias ' + refY + ': ' + ys.ferias + ' dia' + (ys.ferias === 1 ? '' : 's') + (ys.recesso ? ' · recesso ' + ys.recesso : '') + '</small>' : '') + '</div>' +
         '<div class="track' + (coarse ? ' coarse' : '') + '" style="--days:' + days + ';min-height:' + Math.max(64, ps.length * 44 + 16) + 'px">' + bg + todayLine +
         ps.map((p, i) => {
           const [s, e] = clip(p), len = (dt(p.end) - dt(p.start)) / day + 1;
